@@ -1,5 +1,3 @@
-# dataset/dataset_loader.py
-
 import torch
 import torchaudio
 from datasets import load_dataset
