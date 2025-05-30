@@ -1,0 +1,8 @@
+torch
+torchaudio
+transformers
+datasets
+icefall
+k2
+peft
+tqdm
