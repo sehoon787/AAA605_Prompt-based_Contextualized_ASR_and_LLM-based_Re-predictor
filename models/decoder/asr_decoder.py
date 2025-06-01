@@ -1,24 +1,27 @@
 import torch.nn as nn
-from models.decoder.prediction_net import PredictionNet
+from models.decoder.stateless_prediction_net import StatelessPredictionNet
 from models.decoder.joint_net import JointNet
 
 class ASRDecoder(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.prediction_net = PredictionNet(
+        self.prediction_net = StatelessPredictionNet(
             vocab_size=config["vocab_size"],
             embed_dim=config["embed_dim"],
-            hidden_dim=config["predictor_hidden_dim"]
         )
 
         self.joint_net = JointNet(
             encoder_dim=config["encoder_output_dim"],
-            predictor_dim=config["predictor_hidden_dim"],
+            predictor_dim=config["embed_dim"],  # embed_dim == predictor_dim
             joint_dim=config["joint_dim"],
             vocab_size=config["vocab_size"]
         )
 
     def forward(self, encoder_out, tokens):
-        predictor_out, _ = self.prediction_net(tokens)
+        """
+        encoder_out: (B, T, encoder_output_dim)
+        tokens: (B, U)  -> target tokens for prediction network
+        """
+        predictor_out = self.prediction_net(tokens)  # (B, U, embed_dim)
         logits = self.joint_net(encoder_out, predictor_out)
         return logits

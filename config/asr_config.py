@@ -12,7 +12,6 @@ config = {
 
     "vocab_size": 30522,  # BERT tokenizer vocab 그대로 사용
     "embed_dim": 256,
-    "predictor_hidden_dim": 512,
     "encoder_output_dim": 256,
     "joint_dim": 512
 }
