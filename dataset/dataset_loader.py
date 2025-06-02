@@ -3,18 +3,26 @@ import torchaudio
 from datasets import load_dataset
 
 class ASRDataset(torch.utils.data.Dataset):
-    def __init__(self, tokenizer, dataset_split="trainer", language="en", max_prompt_len=32):
+    """
+    학습시: "train-clean-100"
+    검증시: "dev-clean"
+    실험시: "test-clean", "test-other"
+    """
+    def __init__(self, tokenizer, dataset_split="train-clean-100", max_prompt_len=32):
         self.dataset = load_dataset(
-            "mozilla-foundation/common_voice_13_0",
-            language,
-            split=dataset_split,
-            trust_remote_code=True
+            "librispeech_asr",
+            "clean",
+            split=dataset_split
         )
         self.tokenizer = tokenizer
         self.max_prompt_len = max_prompt_len
 
-        self.dataset = self.dataset.filter(lambda x: x['audio'] is not None and x['sentence'] is not None)
-        self.resampler = torchaudio.transforms.Resample(orig_freq=48000, new_freq=16000)
+        self.dataset = self.dataset.filter(lambda x: x['audio'] is not None and x['text'] is not None)
+
+        self.mel_transform = torchaudio.transforms.MelSpectrogram(
+            sample_rate=16000,
+            n_mels=80
+        )
 
     def __len__(self):
         return len(self.dataset)
@@ -22,13 +30,13 @@ class ASRDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         sample = self.dataset[idx]
 
-        speech_array = sample["audio"]["array"]
-        speech_tensor = torch.tensor(speech_array, dtype=torch.float32).unsqueeze(0)
-        speech_tensor = self.resampler(speech_tensor).squeeze(0)
-        speech_tensor = torchaudio.transforms.MelSpectrogram(sample_rate=16000, n_mels=80)(speech_tensor)
+        # audio는 librosa에서 array가 아니라 path or tensor임
+        speech_array, sr = torchaudio.load(sample['audio']['path'])
+        speech_array = speech_array.mean(0)  # mono 변환 (LibriSpeech는 대부분 mono지만 안전을 위해)
+        speech_tensor = self.mel_transform(speech_array)
 
         prompt_text = "You are recognizing the following utterance."
-        sentence_text = sample["sentence"]
+        sentence_text = sample["text"]
 
         prompt_encoding = self.tokenizer(prompt_text, return_tensors="pt", padding="max_length",
                                          max_length=self.max_prompt_len, truncation=True)
