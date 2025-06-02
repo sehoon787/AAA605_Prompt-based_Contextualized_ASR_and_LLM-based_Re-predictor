@@ -1,7 +1,6 @@
 import torch
 import torchaudio
 from datasets import load_dataset
-from transformers import AutoTokenizer
 
 class ASRDataset(torch.utils.data.Dataset):
     def __init__(self, tokenizer, dataset_split="trainer", language="en", max_prompt_len=32):
