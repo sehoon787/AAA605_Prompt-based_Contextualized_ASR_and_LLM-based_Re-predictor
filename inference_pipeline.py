@@ -21,7 +21,7 @@ model.eval()
 tokenizer = AutoTokenizer.from_pretrained(config["pretrained_model_name"])
 
 # Load test data
-test_dataset = ASRDataset(tokenizer, dataset_split="test", language="en")
+test_dataset = ASRDataset(tokenizer, dataset_split="test-clean")
 test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, collate_fn=collate_fn)
 
 beam_decoder = RNNTBeamSearchDecoder(

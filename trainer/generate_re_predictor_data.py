@@ -20,7 +20,7 @@ model.load_state_dict(checkpoint['model_state_dict'])
 model.eval()
 
 tokenizer = AutoTokenizer.from_pretrained(config["pretrained_model_name"])
-train_dataset = ASRDataset(tokenizer, dataset_split="train", language="en")
+train_dataset = ASRDataset(tokenizer, dataset_split="train-clean-100")
 train_loader = DataLoader(train_dataset, batch_size=1, shuffle=False, collate_fn=collate_fn)
 
 beam_decoder = RNNTBeamSearchDecoder(
