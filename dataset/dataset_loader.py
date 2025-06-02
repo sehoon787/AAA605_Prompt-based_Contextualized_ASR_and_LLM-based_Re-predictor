@@ -1,18 +1,22 @@
 import torch
 import torchaudio
-from datasets import load_dataset
+from datasets import load_dataset, DownloadConfig
+import os
 
 class ASRDataset(torch.utils.data.Dataset):
-    """
-    학습시: "train-clean-100"
-    검증시: "dev-clean"
-    실험시: "test-clean", "test-other"
-    """
     def __init__(self, tokenizer, dataset_split="train-clean-100", max_prompt_len=32):
+        cache_dir = os.path.expanduser("~/.cache/huggingface/datasets")
+        download_config = DownloadConfig(
+            max_retries=10,
+            resume_download=True
+        )
+
         self.dataset = load_dataset(
             "librispeech_asr",
             "clean",
-            split=dataset_split
+            split=dataset_split,
+            cache_dir=cache_dir,
+            download_config=download_config
         )
         self.tokenizer = tokenizer
         self.max_prompt_len = max_prompt_len
@@ -29,10 +33,8 @@ class ASRDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         sample = self.dataset[idx]
-
-        # audio는 librosa에서 array가 아니라 path or tensor임
         speech_array, sr = torchaudio.load(sample['audio']['path'])
-        speech_array = speech_array.mean(0)  # mono 변환 (LibriSpeech는 대부분 mono지만 안전을 위해)
+        speech_array = speech_array.mean(0)
         speech_tensor = self.mel_transform(speech_array)
 
         prompt_text = "You are recognizing the following utterance."
@@ -43,7 +45,7 @@ class ASRDataset(torch.utils.data.Dataset):
         label_encoding = self.tokenizer(sentence_text, return_tensors="pt")
 
         return (
-            speech_tensor.transpose(0, 1),  # (T, 80)
+            speech_tensor.transpose(0, 1),
             prompt_encoding["input_ids"].squeeze(0),
             prompt_encoding["attention_mask"].squeeze(0),
             label_encoding["input_ids"].squeeze(0)[1:-1]
