@@ -4,7 +4,8 @@ from datasets import load_dataset
 
 class ASRDataset(torch.utils.data.Dataset):
     def __init__(self, tokenizer, dataset_split="trainer", language="en", max_prompt_len=32):
-        self.dataset = load_dataset("mozilla-foundation/common_voice_13_0", language, split=dataset_split)
+        self.dataset = load_dataset("mozilla-foundation/common_voice_13_0", language, split=dataset_split,
+                                    use_auth_token=True)
         self.tokenizer = tokenizer
         self.max_prompt_len = max_prompt_len
 

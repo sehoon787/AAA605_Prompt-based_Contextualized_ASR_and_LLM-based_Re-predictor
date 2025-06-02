@@ -11,7 +11,8 @@ from models.asr_model import ASRModel
 from models.losses.pruned_rnnt_loss import PrunedRNNTLoss
 from utils.hf_auth import huggingface_login
 
-huggingface_login()
+# 필요시
+# huggingface_login()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
