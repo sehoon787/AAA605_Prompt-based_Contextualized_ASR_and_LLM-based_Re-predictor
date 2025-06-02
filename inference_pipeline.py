@@ -46,7 +46,13 @@ for batch in test_loader:
     n_best = beam_decoder.recognize(speech_input, input_ids, attention_mask)
 
     utterance_prompt = "You are recognizing the following utterance."
-    result = re_predictor.rerank(utterance_prompt, n_best, formatter)
+    word_prompt = ['some', 'word', 'here']
+    result = re_predictor.rerank(
+        utterance_prompt,
+        word_prompt,
+        n_best,
+        formatter
+    )
 
     print("----- Inference Result -----")
     for idx, hyp in enumerate(n_best):

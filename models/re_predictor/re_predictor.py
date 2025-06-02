@@ -8,8 +8,8 @@ class RePredictor:
         self.model = AutoModelForCausalLM.from_pretrained(model_name).to(device)
         self.model.eval()
 
-    def rerank(self, utterance_prompt, candidates, formatter):
-        prompt = formatter.format(utterance_prompt, candidates)
+    def rerank(self, utterance_prompt, word_prompt, candidates, formatter):
+        prompt = formatter.format(utterance_prompt, word_prompt, candidates)
         inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
 
         with torch.no_grad():
