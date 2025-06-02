@@ -1,5 +1,6 @@
 import torch.nn as nn
 
+# RNNT with StateLess Prediction network (RNNT-SLP)
 class StatelessPredictionNet(nn.Module):
     def __init__(self, vocab_size, embed_dim=256):
         super().__init__()

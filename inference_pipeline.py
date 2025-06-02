@@ -1,7 +1,6 @@
 import torch
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
-from config.asr_config import config
 from dataset.dataset_loader import ASRDataset, collate_fn
 from models.asr_model import ASRModel
 from models.inference.beam_search_decoder import RNNTBeamSearchDecoder
