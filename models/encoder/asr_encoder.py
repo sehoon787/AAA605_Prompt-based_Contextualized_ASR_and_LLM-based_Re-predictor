@@ -12,9 +12,8 @@ class ASREncoder(nn.Module):
         self.speech_encoder = SpeechEncoder(
             input_dim=config["speech_input_dim"],
             hidden_dim=config["speech_hidden_dim"],
-            num_stages=config["num_stages"],
-            blocks_per_stage=config["blocks_per_stage"],
-            reduction_factor=config["reduction_factor"]
+            zipformer_blocks=config["zipformer_blocks"],
+            reduction_factors=config["reduction_factors"],
         )
 
         self.text_encoder = TextEncoder(

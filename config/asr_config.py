@@ -1,9 +1,8 @@
 config = {
     "speech_input_dim": 80,
     "speech_hidden_dim": 256,
-    "num_stages": 4,
-    "blocks_per_stage": 2,
-    "reduction_factor": 2,
+    "zipformer_blocks": [2, 2, 3, 4, 3, 2],
+    "reduction_factors": [2, 3, 4, 3, 2],
 
     "pretrained_model_name": "bert-base-uncased",
     "bert_hidden_dim": 768,
