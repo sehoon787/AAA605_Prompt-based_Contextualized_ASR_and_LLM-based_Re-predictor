@@ -1,7 +1,6 @@
 import torch.nn as nn
 
-from models.encoder.zipformer_block import ZipformerBlock, BiasNorm, Bypass
-
+from models.encoder.zipformer_block import BiasNorm, Bypass, ZipformerBlock
 
 class ConvEmbedding(nn.Module):
     def __init__(self, input_dim, hidden_dim):
