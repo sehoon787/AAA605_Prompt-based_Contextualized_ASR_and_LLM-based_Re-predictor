@@ -1,6 +1,7 @@
 import torch
 import torchaudio
 from datasets import load_dataset
+import aiohttp
 
 class ASRDataset(torch.utils.data.Dataset):
     """
@@ -12,7 +13,8 @@ class ASRDataset(torch.utils.data.Dataset):
         self.dataset = load_dataset(
             "librispeech_asr",
             "clean",
-            split=dataset_split
+            split=dataset_split,
+            storage_options={'client_kwargs': {'timeout': aiohttp.ClientTimeout(total=3600)}}
         )
         self.tokenizer = tokenizer
         self.max_prompt_len = max_prompt_len
