@@ -18,7 +18,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # 데이터 준비
 tokenizer = AutoTokenizer.from_pretrained(config["pretrained_model_name"])
-train_dataset = ASRDataset(tokenizer, dataset_split="train-clean-100")
+train_dataset = ASRDataset(tokenizer, dataset_split="train.clean.100")
 train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True, collate_fn=collate_fn)
 
 # 모델 및 optimizer 준비

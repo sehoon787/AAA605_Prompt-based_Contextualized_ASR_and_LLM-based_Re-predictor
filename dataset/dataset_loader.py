@@ -6,11 +6,14 @@ import aiohttp
 
 class ASRDataset(torch.utils.data.Dataset):
     """
-    학습시: "train-clean-100"
-    검증시: "dev-clean"
-    실험시: "test-clean", "test-other"
+    학습시:
+    dataset_split = "train.clean.100"
+    검증시:
+    dataset_split = "validation.clean"
+    실험시:
+    dataset_split = "test.clean"  # 또는 "test.other"
     """
-    def __init__(self, tokenizer, dataset_split="train-clean-100", max_prompt_len=32):
+    def __init__(self, tokenizer, dataset_split="train.clean.100", max_prompt_len=32):
         # 캐시 경로 설정 (변경 가능)
         cache_dir = os.path.expanduser("~/.cache/huggingface/datasets")
         download_config = DownloadConfig(
@@ -20,7 +23,6 @@ class ASRDataset(torch.utils.data.Dataset):
 
         self.dataset = load_dataset(
             "librispeech_asr",
-            "clean",
             split=dataset_split,
             cache_dir=cache_dir,
             download_config=download_config,
