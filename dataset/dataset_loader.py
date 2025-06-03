@@ -1,5 +1,5 @@
 import os
-import subprocess
+import tarfile
 import torch
 import torchaudio
 from datasets import load_dataset
@@ -14,30 +14,24 @@ class ASRDataset(torch.utils.data.Dataset):
     dataset_split = "test.clean"  # 또는 "test.other"
     """
 
-    # huggingface split 명칭 → huggingface-cli include 인자 변환용 매핑
-    HF_CLI_SPLIT_MAP = {
-        "train.clean.100": "train.clean.100",
-        "train.clean.360": "train.clean.360",
-        "train.other.500": "train.other.500",
-        "validation.clean": "dev.clean",
-        "validation.other": "dev.other",
-        "test.clean": "test.clean",
-        "test.other": "test.other"
+    SPLIT_MAP = {
+        "train.clean.100": "train-clean-100",
+        "validation.clean": "dev-clean",
+        "test.clean": "test-clean",
     }
 
     def __init__(self, tokenizer, dataset_split="train.clean.100", max_prompt_len=32):
-        # 본인 local 경로
-        self.local_data_dir = "C:/Users/Administrator/hf_datasets/librispeech_asr"
+        self.dataset_split = dataset_split
+        self.base_data_dir = r"C:\Users\Administrator\Desktop\ku\1-2\AAA605_Prompt-based_Contextualized_ASR_and_LLM-based_Re-predictor\data"
+        self.extract_dir = os.path.join(self.base_data_dir, "LibriSpeech")
+        self.tar_filename = self.SPLIT_MAP[dataset_split] + ".tar"
 
-        # 사전 다운로드 수행
-        self.download_if_needed(dataset_split)
+        self._extract_if_needed()
 
-        # 사전 다운로드된 데이터셋 불러오기 (offline)
         self.dataset = load_dataset(
             "librispeech_asr",
             split=dataset_split,
-            data_dir=self.local_data_dir,
-            trust_remote_code=True
+            data_dir=self.extract_dir
         )
 
         self.tokenizer = tokenizer
@@ -50,27 +44,18 @@ class ASRDataset(torch.utils.data.Dataset):
             n_mels=80
         )
 
-    def download_if_needed(self, dataset_split):
-        # huggingface-cli 명령어 구성
-        hf_cli_split = self.HF_CLI_SPLIT_MAP[dataset_split]
+    def _extract_if_needed(self):
+        tar_path = os.path.join(self.base_data_dir, self.tar_filename)
+        target_extract_path = os.path.join(self.extract_dir, self.SPLIT_MAP[self.dataset_split])
 
-        # 사전 다운로드할 경로가 없으면 수행
-        if not os.path.exists(self.local_data_dir):
-            os.makedirs(self.local_data_dir, exist_ok=True)
-
-        # huggingface-cli download 수행
-        print(f"Downloading {dataset_split}... (huggingface-cli download)")
-        cmd = [
-            "huggingface-cli",
-            "download",
-            "librispeech_asr",
-            "--repo-type", "dataset",
-            "--include", hf_cli_split,
-            "--local-dir", self.local_data_dir,
-            "--local-dir-use-symlinks", "False"
-        ]
-        subprocess.run(cmd, check=True)
-        print(f"Downloaded {dataset_split} complete.")
+        if not os.path.exists(target_extract_path):
+            print(f"Extracting {self.tar_filename}...")
+            os.makedirs(self.extract_dir, exist_ok=True)
+            with tarfile.open(tar_path, "r:") as tar:
+                tar.extractall(path=self.extract_dir)
+            print("Extraction complete.")
+        else:
+            print(f"{self.SPLIT_MAP[self.dataset_split]} already extracted. Skipping extraction.")
 
     def __len__(self):
         return len(self.dataset)
@@ -78,9 +63,8 @@ class ASRDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         sample = self.dataset[idx]
 
-        # audio는 librosa에서 array가 아니라 path or tensor임
         speech_array, sr = torchaudio.load(sample['audio']['path'])
-        speech_array = speech_array.mean(0)  # mono 변환 (LibriSpeech는 대부분 mono지만 안전을 위해)
+        speech_array = speech_array.mean(0)
         speech_tensor = self.mel_transform(speech_array)
 
         prompt_text = "You are recognizing the following utterance."
@@ -91,7 +75,7 @@ class ASRDataset(torch.utils.data.Dataset):
         label_encoding = self.tokenizer(sentence_text, return_tensors="pt")
 
         return (
-            speech_tensor.transpose(0, 1),  # (T, 80)
+            speech_tensor.transpose(0, 1),
             prompt_encoding["input_ids"].squeeze(0),
             prompt_encoding["attention_mask"].squeeze(0),
             label_encoding["input_ids"].squeeze(0)[1:-1]
