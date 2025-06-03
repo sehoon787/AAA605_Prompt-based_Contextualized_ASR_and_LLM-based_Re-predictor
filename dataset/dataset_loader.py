@@ -26,12 +26,13 @@ class ASRDataset(torch.utils.data.Dataset):
     }
 
     def __init__(self, tokenizer, dataset_split="train.clean.100", max_prompt_len=32):
-        self.local_data_dir = "C:/Users/Administrator/hf_datasets/librispeech_asr"  # 본인 경로 수정
+        # 본인 local 경로
+        self.local_data_dir = "C:/Users/Administrator/hf_datasets/librispeech_asr"
 
-        # ✅ 사전 다운로드 수행
+        # 사전 다운로드 수행
         self.download_if_needed(dataset_split)
 
-        # ✅ 사전 다운로드된 데이터셋 불러오기 (offline)
+        # 사전 다운로드된 데이터셋 불러오기 (offline)
         self.dataset = load_dataset(
             "librispeech_asr",
             split=dataset_split,
