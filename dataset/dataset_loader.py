@@ -7,35 +7,39 @@ from datasets import load_dataset
 class ASRDataset(torch.utils.data.Dataset):
     """
     학습시:
-    dataset_split = "train.clean.100"
+        dataset_split = "train.clean.100"
     검증시:
-    dataset_split = "validation.clean"
+        dataset_split = "validation.clean"
     실험시:
-    dataset_split = "test.clean"  # 또는 "test.other"
+        dataset_split = "test.clean"  # 또는 "test.other"
     """
 
     SPLIT_MAP = {
         "train.clean.100": "train-clean-100",
         "validation.clean": "dev-clean",
+        "validation.other": "dev-other",
         "test.clean": "test-clean",
+        "test.other": "test-other"
     }
 
     def __init__(self, tokenizer, dataset_split="train.clean.100", max_prompt_len=32):
         self.dataset_split = dataset_split
+        self.tokenizer = tokenizer
+        self.max_prompt_len = max_prompt_len
+
+        # 데이터 경로
         self.base_data_dir = r"C:\Users\Administrator\Desktop\ku\1-2\AAA605_Prompt-based_Contextualized_ASR_and_LLM-based_Re-predictor\data"
         self.extract_dir = os.path.join(self.base_data_dir, "LibriSpeech")
-        self.tar_filename = self.SPLIT_MAP[dataset_split] + ".tar"
+        self.tar_filename = self.SPLIT_MAP[self.dataset_split] + ".tar.gz"
 
         self._extract_if_needed()
 
+        # 압축 해제된 로컬 데이터셋 로드
         self.dataset = load_dataset(
             "librispeech_asr",
-            split=dataset_split,
+            split=self.dataset_split,
             data_dir=self.extract_dir
         )
-
-        self.tokenizer = tokenizer
-        self.max_prompt_len = max_prompt_len
 
         self.dataset = self.dataset.filter(lambda x: x['audio'] is not None and x['text'] is not None)
 
@@ -46,16 +50,16 @@ class ASRDataset(torch.utils.data.Dataset):
 
     def _extract_if_needed(self):
         tar_path = os.path.join(self.base_data_dir, self.tar_filename)
-        target_extract_path = os.path.join(self.extract_dir, self.SPLIT_MAP[self.dataset_split])
+        target_dir = os.path.join(self.extract_dir, self.SPLIT_MAP[self.dataset_split])
 
-        if not os.path.exists(target_extract_path):
+        if not os.path.exists(target_dir):
             print(f"Extracting {self.tar_filename}...")
             os.makedirs(self.extract_dir, exist_ok=True)
-            with tarfile.open(tar_path, "r:") as tar:
+            with tarfile.open(tar_path, "r:gz") as tar:   # gzip 압축 전용으로 명확히 지정
                 tar.extractall(path=self.extract_dir)
-            print("Extraction complete.")
+            print(f"Extracted {self.SPLIT_MAP[self.dataset_split]} complete.")
         else:
-            print(f"{self.SPLIT_MAP[self.dataset_split]} already extracted. Skipping extraction.")
+            print(f"{self.SPLIT_MAP[self.dataset_split]} already extracted.")
 
     def __len__(self):
         return len(self.dataset)
@@ -80,7 +84,6 @@ class ASRDataset(torch.utils.data.Dataset):
             prompt_encoding["attention_mask"].squeeze(0),
             label_encoding["input_ids"].squeeze(0)[1:-1]
         )
-
 
 def collate_fn(batch):
     speech, input_ids, attention_mask, labels = zip(*batch)
