@@ -1,10 +1,8 @@
 import os
+import subprocess
 import torch
 import torchaudio
-from datasets import load_dataset, DownloadConfig
-import aiohttp
-
-os.environ["HF_DATASETS_DOWNLOAD_TIMEOUT"] = "7200"
+from datasets import load_dataset
 
 class ASRDataset(torch.utils.data.Dataset):
     """
@@ -15,22 +13,32 @@ class ASRDataset(torch.utils.data.Dataset):
     실험시:
     dataset_split = "test.clean"  # 또는 "test.other"
     """
-    def __init__(self, tokenizer, dataset_split="train.clean.100", max_prompt_len=32):
-        # 캐시 경로 설정 (변경 가능)
-        cache_dir = os.path.expanduser("~/.cache/huggingface/datasets")
-        download_config = DownloadConfig(
-            resume_download=True,
-            max_retries=10  # 실패 시 10번 재시도
-        )
 
+    # huggingface split 명칭 → huggingface-cli include 인자 변환용 매핑
+    HF_CLI_SPLIT_MAP = {
+        "train.clean.100": "train.clean.100",
+        "train.clean.360": "train.clean.360",
+        "train.other.500": "train.other.500",
+        "validation.clean": "dev.clean",
+        "validation.other": "dev.other",
+        "test.clean": "test.clean",
+        "test.other": "test.other"
+    }
+
+    def __init__(self, tokenizer, dataset_split="train.clean.100", max_prompt_len=32):
+        self.local_data_dir = "C:/Users/Administrator/hf_datasets/librispeech_asr"  # 본인 경로 수정
+
+        # ✅ 사전 다운로드 수행
+        self.download_if_needed(dataset_split)
+
+        # ✅ 사전 다운로드된 데이터셋 불러오기 (offline)
         self.dataset = load_dataset(
             "librispeech_asr",
             split=dataset_split,
-            trust_remote_code=True,
-            cache_dir=cache_dir,
-            download_config=download_config,
-            storage_options={'client_kwargs': {'timeout': aiohttp.ClientTimeout(total=3600)}}
+            data_dir=self.local_data_dir,
+            trust_remote_code=True
         )
+
         self.tokenizer = tokenizer
         self.max_prompt_len = max_prompt_len
 
@@ -40,6 +48,28 @@ class ASRDataset(torch.utils.data.Dataset):
             sample_rate=16000,
             n_mels=80
         )
+
+    def download_if_needed(self, dataset_split):
+        # huggingface-cli 명령어 구성
+        hf_cli_split = self.HF_CLI_SPLIT_MAP[dataset_split]
+
+        # 사전 다운로드할 경로가 없으면 수행
+        if not os.path.exists(self.local_data_dir):
+            os.makedirs(self.local_data_dir, exist_ok=True)
+
+        # huggingface-cli download 수행
+        print(f"Downloading {dataset_split}... (huggingface-cli download)")
+        cmd = [
+            "huggingface-cli",
+            "download",
+            "librispeech_asr",
+            "--repo-type", "dataset",
+            "--include", hf_cli_split,
+            "--local-dir", self.local_data_dir,
+            "--local-dir-use-symlinks", "False"
+        ]
+        subprocess.run(cmd, check=True)
+        print(f"Downloaded {dataset_split} complete.")
 
     def __len__(self):
         return len(self.dataset)
@@ -65,6 +95,7 @@ class ASRDataset(torch.utils.data.Dataset):
             prompt_encoding["attention_mask"].squeeze(0),
             label_encoding["input_ids"].squeeze(0)[1:-1]
         )
+
 
 def collate_fn(batch):
     speech, input_ids, attention_mask, labels = zip(*batch)
