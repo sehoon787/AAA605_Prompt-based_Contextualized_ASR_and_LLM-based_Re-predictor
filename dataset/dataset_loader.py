@@ -1,6 +1,6 @@
 import torch
 import torchaudio
-from datasets import load_dataset
+from datasets import load_dataset, DownloadConfig
 import aiohttp
 
 class ASRDataset(torch.utils.data.Dataset):
@@ -10,10 +10,15 @@ class ASRDataset(torch.utils.data.Dataset):
     실험시: "test-clean", "test-other"
     """
     def __init__(self, tokenizer, dataset_split="train-clean-100", max_prompt_len=32):
+        download_config = DownloadConfig(
+            resume_download=True
+        )
+
         self.dataset = load_dataset(
             "librispeech_asr",
             "clean",
             split=dataset_split,
+            download_config=download_config,
             storage_options={'client_kwargs': {'timeout': aiohttp.ClientTimeout(total=3600)}}
         )
         self.tokenizer = tokenizer
