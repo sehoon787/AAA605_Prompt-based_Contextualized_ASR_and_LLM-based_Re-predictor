@@ -4,6 +4,8 @@ import torchaudio
 from datasets import load_dataset, DownloadConfig
 import aiohttp
 
+os.environ["HF_DATASETS_DOWNLOAD_TIMEOUT"] = "7200"
+
 class ASRDataset(torch.utils.data.Dataset):
     """
     학습시:
