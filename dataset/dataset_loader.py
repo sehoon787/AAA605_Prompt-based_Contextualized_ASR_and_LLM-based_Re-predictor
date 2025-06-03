@@ -24,6 +24,7 @@ class ASRDataset(torch.utils.data.Dataset):
         self.dataset = load_dataset(
             "librispeech_asr",
             split=dataset_split,
+            trust_remote_code=True,
             cache_dir=cache_dir,
             download_config=download_config,
             storage_options={'client_kwargs': {'timeout': aiohttp.ClientTimeout(total=3600)}}
