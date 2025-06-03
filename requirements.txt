@@ -1,6 +1,11 @@
-torch
-torchaudio
-transformers
-datasets
+torch>=2.0.0
+torchaudio>=2.0.0
+transformers>=4.35.0
+datasets>=2.18.0
+scipy
+jiwer
+nltk
+spacy
+sentencepiece  # transformers 일부 tokenizer 모델을 위한 의존성
+accelerate  # LLM inference 가속을 위해
 tqdm
-soundfile
