@@ -11,15 +11,13 @@ class ASRDataset(torch.utils.data.Dataset):
     검증시:
         dataset_split = "validation.clean"
     실험시:
-        dataset_split = "test.clean"  # 또는 "test.other"
+        dataset_split = "test.clean"
     """
 
     SPLIT_MAP = {
         "train.clean.100": "train-clean-100",
         "validation.clean": "dev-clean",
-        "validation.other": "dev-other",
         "test.clean": "test-clean",
-        "test.other": "test-other"
     }
 
     def __init__(self, tokenizer, dataset_split="train.clean.100", max_prompt_len=32):
