@@ -1,98 +1,79 @@
 import os
-import tarfile
 import torch
 import torchaudio
-from datasets import load_dataset
+from torch.utils.data import Dataset
+from glob import glob
 
-class ASRDataset(torch.utils.data.Dataset):
+class ASRDataset(Dataset):
     """
     학습시:
-        dataset_split = "train.clean.100"
+        dataset_split = "train-clean-100"
     검증시:
-        dataset_split = "validation.clean"
+        dataset_split = "dev-clean"
     실험시:
-        dataset_split = "test.clean"
+        dataset_split = "test-clean"  # 또는 "test-other"
     """
 
-    SPLIT_MAP = {
-        "train.clean.100": "train-clean-100",
-        "validation.clean": "dev-clean",
-        "test.clean": "test-clean",
-    }
-
-    def __init__(self, tokenizer, dataset_split="train.clean.100", max_prompt_len=32):
-        self.dataset_split = dataset_split
+    def __init__(self, tokenizer, dataset_split="train-clean-100", max_prompt_len=32):
         self.tokenizer = tokenizer
         self.max_prompt_len = max_prompt_len
 
-        # 데이터 경로
-        self.base_data_dir = r"C:\Users\Administrator\Desktop\ku\1-2\AAA605_Prompt-based_Contextualized_ASR_and_LLM-based_Re-predictor\data"
-        self.extract_dir = os.path.join(self.base_data_dir, "LibriSpeech")
-        self.tar_filename = self.SPLIT_MAP[self.dataset_split] + ".tar.gz"
+        # 경로 지정 (여기에 본인의 데이터 폴더 지정)
+        self.base_data_dir = r"C:\Users\Administrator\Desktop\ku\1-2\AAA605_Prompt-based_Contextualized_ASR_and_LLM-based_Re-predictor\data\LibriSpeech"
+        self.data_dir = os.path.join(self.base_data_dir, dataset_split)
 
-        self._extract_if_needed()
+        # transcript 파일 읽기
+        self.transcripts = self._load_transcripts()
 
-        # 압축 해제된 로컬 데이터셋 로드
-        self.dataset = load_dataset(
-            "librispeech_asr",
-            split=self.dataset_split,
-            data_dir=self.extract_dir,
-            trust_remote_code=True
-        )
-
-        self.dataset = self.dataset.filter(lambda x: x['audio'] is not None and x['text'] is not None)
+        # 파일 리스트 생성
+        self.samples = list(self.transcripts.items())
 
         self.mel_transform = torchaudio.transforms.MelSpectrogram(
             sample_rate=16000,
             n_mels=80
         )
 
-    def _extract_if_needed(self):
-        tar_path = os.path.join(self.base_data_dir, self.tar_filename)
-        target_dir = os.path.join(self.extract_dir, self.SPLIT_MAP[self.dataset_split])
+    def _load_transcripts(self):
+        transcript_dict = {}
+        transcript_files = glob(os.path.join(self.data_dir, "*", "*", "*.trans.txt"))
 
-        if not os.path.exists(target_dir):
-            print(f"Extracting {self.tar_filename}...")
-            os.makedirs(self.extract_dir, exist_ok=True)
-            with tarfile.open(tar_path, "r:gz") as tar:
-                safe_extract(tar, path=self.base_data_dir)
-            print(f"Extracted {self.SPLIT_MAP[self.dataset_split]} complete.")
-        else:
-            print(f"{self.SPLIT_MAP[self.dataset_split]} already extracted.")
+        for trans_file in transcript_files:
+            with open(trans_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    parts = line.strip().split(" ", 1)
+                    if len(parts) == 2:
+                        utt_id, text = parts
+                        transcript_dict[utt_id] = text
+
+        return transcript_dict
 
     def __len__(self):
-        return len(self.dataset)
+        return len(self.samples)
 
     def __getitem__(self, idx):
-        sample = self.dataset[idx]
+        utt_id, text = self.samples[idx]
 
-        speech_array, sr = torchaudio.load(sample['audio']['path'])
-        speech_array = speech_array.mean(0)
+        # 오디오 파일 경로
+        speaker_id, chapter_id, utt_num = utt_id.split("-")
+        audio_path = os.path.join(self.data_dir, speaker_id, chapter_id, utt_id + ".flac")
+
+        # 오디오 로드
+        speech_array, sr = torchaudio.load(audio_path)
+        speech_array = speech_array.mean(0)  # mono 변환
         speech_tensor = self.mel_transform(speech_array)
 
+        # 프롬프트와 라벨 인코딩
         prompt_text = "You are recognizing the following utterance."
-        sentence_text = sample["text"]
-
         prompt_encoding = self.tokenizer(prompt_text, return_tensors="pt", padding="max_length",
                                          max_length=self.max_prompt_len, truncation=True)
-        label_encoding = self.tokenizer(sentence_text, return_tensors="pt")
+        label_encoding = self.tokenizer(text, return_tensors="pt")
 
         return (
-            speech_tensor.transpose(0, 1),
+            speech_tensor.transpose(0, 1),  # (T, 80)
             prompt_encoding["input_ids"].squeeze(0),
             prompt_encoding["attention_mask"].squeeze(0),
             label_encoding["input_ids"].squeeze(0)[1:-1]
         )
-
-import pathlib
-
-def safe_extract(tar, path="."):
-    for member in tar.getmembers():
-        member_path = os.path.join(path, member.name)
-        abs_path = pathlib.Path(member_path).resolve()
-        if not str(abs_path).startswith(str(pathlib.Path(path).resolve())):
-            raise Exception("Attempted Path Traversal in Tar File")
-    tar.extractall(path=path)
 
 def collate_fn(batch):
     speech, input_ids, attention_mask, labels = zip(*batch)
