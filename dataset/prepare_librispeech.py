@@ -1,43 +1,38 @@
 import os
+import glob
+import pathlib
 import tarfile
 
 # 압축파일 있는 경로
 DOWNLOAD_DIR = r"C:\Users\Administrator\Desktop\ku\1-2\AAA605_Prompt-based_Contextualized_ASR_and_LLM-based_Re-predictor\data"
-# 압축해제 대상 경로
-EXTRACT_DIR = os.path.join(DOWNLOAD_DIR, "LibriSpeech")
 
-# 압축파일 리스트
-ARCHIVES = [
-    "train-clean-100.tar.gz",
-    "dev-clean.tar.gz",
-    "dev-other.tar.gz",
-    "test-clean.tar.gz",
-    "test-other.tar.gz"
-]
+def extract_if_needed(archive_path):
+    # 압축파일명에서 폴더명 생성 (예: train-clean-100.tar.gz → train-clean-100)
+    filename = os.path.basename(archive_path)
+    folder_name = filename.replace('.tar.gz', '')
+    extract_dir = os.path.join(os.path.dirname(archive_path), folder_name)
 
-def extract_if_needed(archive_filename):
-    archive_path = os.path.join(DOWNLOAD_DIR, archive_filename)
+    if not os.path.exists(extract_dir):
+        print(f"Extracting {archive_path} to {extract_dir}...")
+        with tarfile.open(archive_path, 'r:gz') as tar:
+            safe_extract(tar, path=extract_dir)
+    else:
+        print(f"Already extracted: {archive_path}")
 
-    # 폴더명은 압축파일명에서 ".tar.gz" 제거
-    folder_name = archive_filename.replace(".tar.gz", "")
-    target_dir = os.path.join(EXTRACT_DIR, folder_name)
+def prepare_all(data_dir):
+    # 주어진 디렉토리 내부의 모든 .tar.gz 파일 검색
+    archives = glob.glob(os.path.join(data_dir, '**', '*.tar.gz'), recursive=True)
 
-    if os.path.exists(target_dir):
-        print(f"[SKIP] {folder_name} already extracted.")
-        return
-
-    print(f"[EXTRACT] {archive_filename} ...")
-
-    os.makedirs(EXTRACT_DIR, exist_ok=True)
-
-    with tarfile.open(archive_path, "r:gz") as tar:
-        tar.extractall(path=EXTRACT_DIR)
-
-    print(f"[DONE] Extracted {folder_name}")
-
-def prepare_all():
-    for archive in ARCHIVES:
+    for archive in archives:
         extract_if_needed(archive)
 
+def safe_extract(tar, path="."):
+    for member in tar.getmembers():
+        member_path = os.path.join(path, member.name)
+        abs_path = pathlib.Path(member_path).resolve()
+        if not str(abs_path).startswith(str(pathlib.Path(path).resolve())):
+            raise Exception("Attempted Path Traversal in Tar File")
+    tar.extractall(path=path)
+
 if __name__ == "__main__":
-    prepare_all()
+    prepare_all(DOWNLOAD_DIR)
