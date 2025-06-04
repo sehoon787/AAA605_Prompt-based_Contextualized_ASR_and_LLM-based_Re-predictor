@@ -39,7 +39,7 @@ formatter = PromptFormatter()
 re_predictor = RePredictor(model_name="meta-llama/Meta-Llama-3-8B-Instruct", device=device)
 
 # Dataset 불러오기 (test.clean 그대로 활용)
-test_dataset = ASRDataset(tokenizer, dataset_split="test-clean")
+test_dataset = ASRDataset(tokenizer, dataset_split="test.clean")
 test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, collate_fn=collate_fn)
 
 # Bias list 추출 함수

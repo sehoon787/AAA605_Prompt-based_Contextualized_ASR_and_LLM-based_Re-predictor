@@ -1,41 +1,36 @@
 import os
+import glob
 import torch
 import torchaudio
-from torch.utils.data import Dataset
-from glob import glob
+from torch.utils.data import Dataset, DataLoader
 
 class ASRDataset(Dataset):
     """
-    학습시:
-        dataset_split = "train-clean-100"
-    검증시:
-        dataset_split = "dev-clean"
-    실험시:
-        dataset_split = "test-clean"  # 또는 "test-other"
+    최종 심플 버전: 폴더명을 직접 파라미터로 받음
     """
 
     def __init__(self, tokenizer, dataset_split="train-clean-100", max_prompt_len=32):
         self.tokenizer = tokenizer
         self.max_prompt_len = max_prompt_len
 
-        # 경로 지정 (여기에 본인의 데이터 폴더 지정)
+        # 경로 설정 (바로 폴더명 사용)
         self.base_data_dir = r"C:\Users\Administrator\Desktop\ku\1-2\AAA605_Prompt-based_Contextualized_ASR_and_LLM-based_Re-predictor\data\LibriSpeech"
         self.data_dir = os.path.join(self.base_data_dir, dataset_split)
 
-        # transcript 파일 읽기
+        # transcript 파일 로딩
         self.transcripts = self._load_transcripts()
 
-        # 파일 리스트 생성
+        # (utt_id, text) 리스트 생성
         self.samples = list(self.transcripts.items())
 
         self.mel_transform = torchaudio.transforms.MelSpectrogram(
             sample_rate=16000,
-            n_mels=80
+            n_mels=128
         )
 
     def _load_transcripts(self):
         transcript_dict = {}
-        transcript_files = glob(os.path.join(self.data_dir, "*", "*", "*.trans.txt"))
+        transcript_files = glob.glob(os.path.join(self.data_dir, "*", "*", "*.trans.txt"))
 
         for trans_file in transcript_files:
             with open(trans_file, "r", encoding="utf-8") as f:
@@ -45,6 +40,9 @@ class ASRDataset(Dataset):
                         utt_id, text = parts
                         transcript_dict[utt_id] = text
 
+        if len(transcript_dict) == 0:
+            raise ValueError(f"No transcript data found in {self.data_dir}. Please check directory structure.")
+
         return transcript_dict
 
     def __len__(self):
@@ -53,23 +51,20 @@ class ASRDataset(Dataset):
     def __getitem__(self, idx):
         utt_id, text = self.samples[idx]
 
-        # 오디오 파일 경로
         speaker_id, chapter_id, utt_num = utt_id.split("-")
         audio_path = os.path.join(self.data_dir, speaker_id, chapter_id, utt_id + ".flac")
 
-        # 오디오 로드
         speech_array, sr = torchaudio.load(audio_path)
-        speech_array = speech_array.mean(0)  # mono 변환
+        speech_array = speech_array.mean(0)
         speech_tensor = self.mel_transform(speech_array)
 
-        # 프롬프트와 라벨 인코딩
         prompt_text = "You are recognizing the following utterance."
         prompt_encoding = self.tokenizer(prompt_text, return_tensors="pt", padding="max_length",
                                          max_length=self.max_prompt_len, truncation=True)
         label_encoding = self.tokenizer(text, return_tensors="pt")
 
         return (
-            speech_tensor.transpose(0, 1),  # (T, 80)
+            speech_tensor.transpose(0, 1),
             prompt_encoding["input_ids"].squeeze(0),
             prompt_encoding["attention_mask"].squeeze(0),
             label_encoding["input_ids"].squeeze(0)[1:-1]
