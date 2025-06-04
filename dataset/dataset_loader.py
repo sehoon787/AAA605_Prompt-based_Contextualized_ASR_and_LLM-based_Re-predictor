@@ -2,7 +2,8 @@ import os
 import glob
 import torch
 import torchaudio
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
+from config.asr_config import config
 
 class ASRDataset(Dataset):
     """
@@ -25,7 +26,7 @@ class ASRDataset(Dataset):
 
         self.mel_transform = torchaudio.transforms.MelSpectrogram(
             sample_rate=16000,
-            n_mels=128
+            n_mels=config['speech_input_dim']
         )
 
     def _load_transcripts(self):
