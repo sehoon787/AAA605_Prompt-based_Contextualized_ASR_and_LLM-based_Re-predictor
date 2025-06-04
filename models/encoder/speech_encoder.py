@@ -19,7 +19,9 @@ class ConvEmbedding(nn.Module):
         self.layer_norm = nn.LayerNorm(128)
 
         # 마지막 projection
-        self.linear = nn.Linear(128, hidden_dim)
+        # self.linear = nn.Linear(128, hidden_dim)
+        self.linear = nn.Linear(1280, hidden_dim)
+
         self.bias_norm = BiasNorm(hidden_dim)
 
     def forward(self, x):

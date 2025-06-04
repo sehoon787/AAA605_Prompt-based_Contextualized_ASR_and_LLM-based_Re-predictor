@@ -14,6 +14,12 @@
 pip install -r requirements.txt
 ```
 
+## ✅ Data Load
+``` bash
+
+python dataset/prepare_librispeech.py
+``` 
+
 1️⃣ ASR 모델 학습
 ``` bash
 

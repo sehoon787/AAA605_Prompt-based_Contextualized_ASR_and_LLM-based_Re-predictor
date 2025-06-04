@@ -15,8 +15,8 @@ class ASRDataset(Dataset):
         self.max_prompt_len = max_prompt_len
 
         # 경로 설정 (바로 폴더명 사용)
-        self.base_data_dir = r"C:\Users\Administrator\Desktop\ku\1-2\AAA605_Prompt-based_Contextualized_ASR_and_LLM-based_Re-predictor\data"
-        self.data_dir = os.path.join(self.base_data_dir, dataset_split, "LibriSpeech", dataset_split)
+        self.base_data_dir = r"C:\Users\Administrator\Desktop\ku\1-2\AAA605_Prompt-based_Contextualized_ASR_and_LLM-based_Re-predictor\data\LibriSpeech"
+        self.data_dir = os.path.join(self.base_data_dir, dataset_split)
 
         # transcript 파일 로딩
         self.transcripts = self._load_transcripts()

@@ -1,3 +1,4 @@
+# Data Source: https://www.openslr.org/12
 import os
 import glob
 import pathlib
@@ -7,15 +8,12 @@ import tarfile
 DOWNLOAD_DIR = r"C:\Users\Administrator\Desktop\ku\1-2\AAA605_Prompt-based_Contextualized_ASR_and_LLM-based_Re-predictor\data"
 
 def extract_if_needed(archive_path):
-    # 압축파일명에서 폴더명 생성 (예: train-clean-100.tar.gz → train-clean-100)
-    filename = os.path.basename(archive_path)
-    folder_name = filename.replace('.tar.gz', '')
-    extract_dir = os.path.join(os.path.dirname(archive_path), folder_name)
+    extract_dir = os.path.splitext(os.path.splitext(archive_path)[0])[0]
 
     if not os.path.exists(extract_dir):
-        print(f"Extracting {archive_path} to {extract_dir}...")
+        print(f"Extracting {archive_path}...")
         with tarfile.open(archive_path, 'r:gz') as tar:
-            safe_extract(tar, path=extract_dir)
+            tar.extractall(path=os.path.dirname(archive_path))
     else:
         print(f"Already extracted: {archive_path}")
 
