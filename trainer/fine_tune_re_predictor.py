@@ -22,7 +22,7 @@ with open("data/re_predictor_training_data.json", "r") as f:
     data = json.load(f)
 
 dataset = RePredictorDataset(data, formatter, tokenizer)
-dataloader = DataLoader(dataset, batch_size=4, shuffle=True)
+dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
 num_training_steps = len(dataloader) * 5

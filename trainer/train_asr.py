@@ -23,8 +23,8 @@ tokenizer = AutoTokenizer.from_pretrained(config["pretrained_model_name"])
 train_dataset = ASRDataset(tokenizer, dataset_split="train-clean-100")
 val_dataset = ASRDataset(tokenizer, dataset_split="dev-clean")  # validation 추가
 
-train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True, collate_fn=collate_fn)
-val_loader = DataLoader(val_dataset, batch_size=4, shuffle=False, collate_fn=collate_fn)
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, collate_fn=collate_fn)
+val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False, collate_fn=collate_fn)
 
 # 모델 및 optimizer 준비
 model = ASRModel(config).to(device)
