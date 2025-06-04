@@ -76,7 +76,11 @@ class Bypass(nn.Module):
         self.c = nn.Parameter(init_c)
 
     def forward(self, x, y):
-        c = torch.clamp(self.c, 0.0, 1.0)  # 항상 [0,1] 범위로 제한
+        min_len = min(x.size(1), y.size(1))
+        x = x[:, :min_len, :]
+        y = y[:, :min_len, :]
+
+        c = torch.clamp(self.c, 0.0, 1.0)
         return (1 - c) * x + c * y
 
 # Final ZipformerBlock

@@ -19,8 +19,7 @@ class ConvEmbedding(nn.Module):
         self.layer_norm = nn.LayerNorm(128)
 
         # 마지막 projection
-        # self.linear = nn.Linear(128, hidden_dim)
-        self.linear = nn.Linear(1280, hidden_dim)
+        self.linear = nn.LazyLinear(hidden_dim)  # 가변 입력 대응 가능
 
         self.bias_norm = BiasNorm(hidden_dim)
 
