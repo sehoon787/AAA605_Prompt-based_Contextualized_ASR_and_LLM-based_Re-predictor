@@ -36,7 +36,8 @@ class ASRDataset(torch.utils.data.Dataset):
         self.dataset = load_dataset(
             "librispeech_asr",
             split=self.dataset_split,
-            data_dir=self.extract_dir
+            data_dir=self.extract_dir,
+            trust_remote_code=True
         )
 
         self.dataset = self.dataset.filter(lambda x: x['audio'] is not None and x['text'] is not None)
@@ -53,8 +54,8 @@ class ASRDataset(torch.utils.data.Dataset):
         if not os.path.exists(target_dir):
             print(f"Extracting {self.tar_filename}...")
             os.makedirs(self.extract_dir, exist_ok=True)
-            with tarfile.open(tar_path, "r:gz") as tar:   # gzip 압축 전용으로 명확히 지정
-                tar.extractall(path=self.extract_dir)
+            with tarfile.open(tar_path, "r:gz") as tar:
+                safe_extract(tar, path=self.base_data_dir)
             print(f"Extracted {self.SPLIT_MAP[self.dataset_split]} complete.")
         else:
             print(f"{self.SPLIT_MAP[self.dataset_split]} already extracted.")
@@ -82,6 +83,16 @@ class ASRDataset(torch.utils.data.Dataset):
             prompt_encoding["attention_mask"].squeeze(0),
             label_encoding["input_ids"].squeeze(0)[1:-1]
         )
+
+import pathlib
+
+def safe_extract(tar, path="."):
+    for member in tar.getmembers():
+        member_path = os.path.join(path, member.name)
+        abs_path = pathlib.Path(member_path).resolve()
+        if not str(abs_path).startswith(str(pathlib.Path(path).resolve())):
+            raise Exception("Attempted Path Traversal in Tar File")
+    tar.extractall(path=path)
 
 def collate_fn(batch):
     speech, input_ids, attention_mask, labels = zip(*batch)
