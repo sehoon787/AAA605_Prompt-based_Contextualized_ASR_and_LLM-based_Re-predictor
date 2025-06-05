@@ -75,7 +75,19 @@ for epoch in range(1, 11):
         )
 
         loss.backward()
+        # gradient norm
+        total_norm = 0
+        for p in model.parameters():
+            if p.grad is not None:
+                param_norm = p.grad.data.norm(2)
+                total_norm += param_norm.item() ** 2
+        total_norm = total_norm ** 0.5
+        print(f"Gradient Norm: {total_norm:.4f}")
+
         optimizer.step()
+        # parameter sample
+        param = list(model.parameters())[0]
+        print(f"Param sample after step: {param.view(-1)[0].item():.6f}")
 
         total_loss += loss.item()
         progress_bar.set_postfix(batch_loss=loss.item())
