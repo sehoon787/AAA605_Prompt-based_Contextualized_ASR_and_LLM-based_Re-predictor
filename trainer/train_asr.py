@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
+from torch.cuda.amp import autocast
 from transformers import AutoTokenizer
 from tqdm import tqdm
 from jiwer import wer, cer
@@ -26,8 +27,8 @@ val_dataset = ASRDataset(tokenizer, dataset_split="dev-clean")  # validation 추
 # train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, collate_fn=collate_fn)
 # val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False, collate_fn=collate_fn)
 # Only in Windows
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, collate_fn=collate_fn, num_workers=0)
-val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, collate_fn=collate_fn, num_workers=0)
+train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True, collate_fn=collate_fn)
+val_loader = DataLoader(val_dataset, batch_size=2, shuffle=False, collate_fn=collate_fn)
 
 # 모델 및 optimizer 준비
 model = ASRModel(config).to(device)
@@ -40,6 +41,8 @@ os.makedirs("checkpoints", exist_ok=True)
 # Inference용 간단한 Greedy Decoder (Placeholder)
 def simple_decode(log_probs):
     return ["PLACEHOLDER" for _ in range(log_probs.size(0))]
+
+torch.autograd.set_detect_anomaly(True)
 
 # Train Loop
 for epoch in range(1, 11):
@@ -60,7 +63,9 @@ for epoch in range(1, 11):
         optimizer.zero_grad()
 
         logits = model(speech_input, input_ids, attention_mask, label_tokens)
-        log_probs = nn.functional.log_softmax(logits, dim=-1)
+        # OOM 방지
+        with autocast():
+            log_probs = nn.functional.log_softmax(logits, dim=-1)
 
         loss = pruned_loss_fn(
             log_probs=log_probs,
@@ -94,8 +99,8 @@ for epoch in range(1, 11):
             input_lengths = input_lengths.to(device)
             label_lengths = label_lengths.to(device)
 
-            logits = model(speech_input, input_ids, attention_mask, label_tokens)
-            log_probs = nn.functional.log_softmax(logits, dim=-1)
+            logits_pruned = model.forward_pruned(speech_input, input_ids, attention_mask, label_tokens)
+            log_probs = nn.functional.log_softmax(logits_pruned, dim=-1)
 
             loss = pruned_loss_fn(
                 log_probs=log_probs,
