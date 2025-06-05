@@ -96,14 +96,12 @@ class ZipformerBlock(nn.Module):
             nn.Linear(hidden_dim * ff_expansion, hidden_dim),
             nn.Dropout(dropout)
         )
-        self.norm_ffn1 = BiasNorm(hidden_dim)
 
         # Non-linear Attention
         self.non_linear_attention = NonLinearAttention(hidden_dim)
 
         # Self-attention 1
         self.self_attn1 = nn.MultiheadAttention(hidden_dim, num_heads, dropout=dropout, batch_first=True)
-        self.norm_attn1 = BiasNorm(hidden_dim)
 
         # Convolution 1
         self.conv1 = ConvModule(hidden_dim, kernel_size=3, dropout=dropout)
@@ -115,14 +113,12 @@ class ZipformerBlock(nn.Module):
             nn.Linear(hidden_dim * ff_expansion, hidden_dim),
             nn.Dropout(dropout)
         )
-        self.norm_ffn2 = BiasNorm(hidden_dim)
 
         # Middle Bypass
         self.bypass_mid = Bypass(hidden_dim)
 
         # Self-attention 2
         self.self_attn2 = nn.MultiheadAttention(hidden_dim, num_heads, dropout=dropout, batch_first=True)
-        self.norm_attn2 = BiasNorm(hidden_dim)
 
         # Convolution 2
         self.conv2 = ConvModule(hidden_dim, kernel_size=3, dropout=dropout)
@@ -134,7 +130,6 @@ class ZipformerBlock(nn.Module):
             nn.Linear(hidden_dim * ff_expansion, hidden_dim),
             nn.Dropout(dropout)
         )
-        self.norm_ffn3 = BiasNorm(hidden_dim)
 
         # Final BiasNorm
         self.bias_norm_final = BiasNorm(hidden_dim)
@@ -146,26 +141,26 @@ class ZipformerBlock(nn.Module):
         residual = x
 
         # Feedforward 1
-        x = x + self.layer_scale * self.norm_ffn1(self.ffn1(x))
+        x = x + self.layer_scale * self.ffn1(self.ffn1(x))
         # Non-linear Attention
         x = x + self.layer_scale * self.non_linear_attention(x)
         # Self-attention 1
         attn_out1, _ = self.self_attn1(x, x, x)
-        x = x + self.layer_scale * self.norm_attn1(attn_out1)
+        x = x + self.layer_scale * attn_out1
         # Convolution 1
         x = x + self.layer_scale * self.conv1(x)
         # Feedforward 2
-        x = x + self.layer_scale * self.norm_ffn2(self.ffn2(x))
+        x = x + self.layer_scale * self.ffn2(self.ffn2(x))
         # 중간 Bypass 적용
         c_mid = self.bypass_mid(residual, x)
         x = (1 - c_mid) * residual + c_mid * x
         # Self-attention 2
         attn_out2, _ = self.self_attn2(x, x, x)
-        x = x + self.layer_scale * self.norm_attn2(attn_out2)
+        x = x + self.layer_scale * attn_out2
         # Convolution 2
         x = x + self.layer_scale * self.conv2(x)
         # Feedforward 3
-        x = x + self.layer_scale * self.norm_ffn3(self.ffn3(x))
+        x = x + self.layer_scale * self.ffn3(self.ffn3(x))
         # 최종 BiasNorm + 첫 입력 residual 더하기
         x = self.bias_norm_final(x)
         # 최종 Bypass 적용
