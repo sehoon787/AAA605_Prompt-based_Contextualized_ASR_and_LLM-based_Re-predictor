@@ -69,6 +69,7 @@ for epoch in range(1, 11):
         # OOM 방지
         with autocast():
             log_probs = nn.functional.log_softmax(logits, dim=-1)
+            log_probs = torch.clamp(log_probs, min=-20, max=0)
 
         # loss = pruned_loss_fn(
         loss = rnnt_loss_fn(

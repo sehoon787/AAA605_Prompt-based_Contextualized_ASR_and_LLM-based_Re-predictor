@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 # BiasNorm: RMS-based normalization with bias
 class BiasNorm(nn.Module):
-    def __init__(self, dim, eps=1e-6):
+    def __init__(self, dim, eps=1e-5):
         super().__init__()
         self.bias = nn.Parameter(torch.zeros(dim))
         self.log_scale = nn.Parameter(torch.zeros(dim))  # log scale for stability
