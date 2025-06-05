@@ -1,4 +1,5 @@
 import os
+import pdb
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -41,6 +42,7 @@ os.makedirs("checkpoints", exist_ok=True)
 def simple_decode(log_probs):
     return ["PLACEHOLDER" for _ in range(log_probs.size(0))]
 
+
 torch.autograd.set_detect_anomaly(True)
 
 # Train Loop
@@ -76,16 +78,12 @@ for epoch in range(1, 11):
             target_lengths=label_lengths
         )
 
-        loss.backward()
-        # gradient norm
-        total_norm = 0
-        for p in model.parameters():
-            if p.grad is not None:
-                param_norm = p.grad.data.norm(2)
-                total_norm += param_norm.item() ** 2
-        total_norm = total_norm ** 0.5
-        print(f"Gradient Norm: {total_norm:.4f}")
+        try:
+            loss.backward()
+        except Exception as err:
+            pdb.set_trace()
 
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
         optimizer.step()
         # parameter sample
         param = list(model.parameters())[0]
