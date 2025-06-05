@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 from models.decoder.stateless_prediction_net import StatelessPredictionNet
 from models.decoder.joint_net import JointNet
@@ -23,5 +24,11 @@ class ASRDecoder(nn.Module):
         tokens: (B, U)  -> target tokens for prediction network
         """
         predictor_out = self.prediction_net(tokens)  # (B, U, embed_dim)
-        logits = self.joint_net(encoder_out, predictor_out)
+
+        # blank token prepending
+        blank = torch.zeros((predictor_out.size(0), 1, predictor_out.size(2)),
+                             device=predictor_out.device, dtype=predictor_out.dtype)
+        predictor_out = torch.cat([blank, predictor_out], dim=1)  # (B, U+1, embed_dim)
+
+        logits = self.joint_net(encoder_out, predictor_out)  # (B, T, U+1, V)
         return logits

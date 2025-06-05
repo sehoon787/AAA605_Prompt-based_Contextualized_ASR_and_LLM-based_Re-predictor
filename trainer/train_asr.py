@@ -11,7 +11,8 @@ from jiwer import wer, cer
 from config.asr_config import config
 from dataset.dataset_loader import ASRDataset, collate_fn
 from models.asr_model import ASRModel
-from models.losses.pruned_rnnt_loss import PrunedRNNTLoss
+# from models.losses.pruned_rnnt_loss import PrunedRNNTLoss
+from models.losses.pruned_rnnt_loss import RNNTLoss
 from utils.hf_auth import huggingface_login
 
 # 필요시
@@ -24,16 +25,14 @@ tokenizer = AutoTokenizer.from_pretrained(config["pretrained_model_name"])
 train_dataset = ASRDataset(tokenizer, dataset_split="train-clean-100")
 val_dataset = ASRDataset(tokenizer, dataset_split="dev-clean")  # validation 추가
 
-# train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, collate_fn=collate_fn)
-# val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False, collate_fn=collate_fn)
-# Only in Windows
 train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True, collate_fn=collate_fn)
 val_loader = DataLoader(val_dataset, batch_size=2, shuffle=False, collate_fn=collate_fn)
 
 # 모델 및 optimizer 준비
 model = ASRModel(config).to(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-4)
-pruned_loss_fn = PrunedRNNTLoss(reduction="mean", prune_range=5).to(device)
+# pruned_loss_fn = PrunedRNNTLoss(reduction="mean", prune_range=5).to(device)
+rnnt_loss_fn = RNNTLoss().to(device)
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
 
 os.makedirs("checkpoints", exist_ok=True)
@@ -57,7 +56,7 @@ for epoch in range(1, 11):
         input_ids = input_ids.to(device)
         attention_mask = attention_mask.to(device)
         label_tokens = label_tokens.to(device)
-        input_lengths = input_lengths.to(device)
+        input_lengths = input_lengths.to(device) // config['subsampling_factor']
         label_lengths = label_lengths.to(device)
 
         optimizer.zero_grad()
@@ -67,7 +66,8 @@ for epoch in range(1, 11):
         with autocast():
             log_probs = nn.functional.log_softmax(logits, dim=-1)
 
-        loss = pruned_loss_fn(
+        # loss = pruned_loss_fn(
+        loss = rnnt_loss_fn(
             log_probs=log_probs,
             targets=label_tokens,
             logit_lengths=input_lengths,
@@ -108,13 +108,14 @@ for epoch in range(1, 11):
             input_ids = input_ids.to(device)
             attention_mask = attention_mask.to(device)
             label_tokens = label_tokens.to(device)
-            input_lengths = input_lengths.to(device)
+            input_lengths = input_lengths.to(device) // config['subsampling_factor']
             label_lengths = label_lengths.to(device)
 
             logits_pruned = model.forward_pruned(speech_input, input_ids, attention_mask, label_tokens)
             log_probs = nn.functional.log_softmax(logits_pruned, dim=-1)
 
-            loss = pruned_loss_fn(
+            loss = rnnt_loss_fn(
+            # loss = pruned_loss_fn(
                 log_probs=log_probs,
                 targets=label_tokens,
                 logit_lengths=input_lengths,

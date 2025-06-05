@@ -96,6 +96,7 @@ class SpeechEncoder(nn.Module):
         self.conv_embed = ConvEmbedding(input_dim, hidden_dim)
         self.stages = nn.ModuleList()
         self.bypass_modules = nn.ModuleList()
+        self.downsample = Downsample(hidden_dim, 2)
 
         num_stages = len(zipformer_blocks)
         for stage_idx in range(num_stages):
@@ -137,5 +138,7 @@ class SpeechEncoder(nn.Module):
                     x = block(x)
                 x = stage["upsample"](x)
                 x = self.bypass_modules[stage_idx-1](residual, x)
+
+        x = self.downsample(x)
 
         return x
