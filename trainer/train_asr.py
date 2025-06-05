@@ -62,6 +62,8 @@ for epoch in range(1, 11):
         optimizer.zero_grad()
 
         logits = model(speech_input, input_ids, attention_mask, label_tokens)
+        print("logits max:", logits.abs().max())
+
         # OOM 방지
         with autocast():
             log_probs = nn.functional.log_softmax(logits, dim=-1)
