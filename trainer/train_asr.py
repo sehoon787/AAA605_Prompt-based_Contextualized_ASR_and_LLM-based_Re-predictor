@@ -13,8 +13,6 @@ from dataset.dataset_loader import ASRDataset, collate_fn
 from models.asr_model import ASRModel
 from models.losses.pruned_rnnt_loss import RNNTLoss
 
-# huggingface_login()  # 필요시 사용
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Dataset 준비
