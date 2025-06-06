@@ -19,12 +19,12 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 train_dataset = ASRDataset(dataset_split="train-clean-100", train_tokenizer=True)
 val_dataset = ASRDataset(dataset_split="dev-clean")
 
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, collate_fn=collate_fn)
-val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, collate_fn=collate_fn)
+train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, collate_fn=collate_fn)
+val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False, collate_fn=collate_fn)
 
 # 모델, 옵티마이저, 스케줄러 준비
 model = ASRModel(config).to(device)
-optimizer = optim.Adam(model.parameters(), lr=1e-4)
+optimizer = optim.Adam(model.parameters(), lr=1e-5)
 rnnt_loss_fn = RNNTLoss().to(device)
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
 
@@ -61,10 +61,7 @@ for epoch in range(1, 11):
             label_tokens
         )
 
-        with autocast():
-            log_probs = nn.functional.log_softmax(logits, dim=-1)
-            log_probs = torch.clamp(log_probs, min=-20, max=0)
-
+        log_probs = nn.functional.log_softmax(logits, dim=-1)
         loss = rnnt_loss_fn(
             log_probs=log_probs,
             targets=label_tokens,
@@ -76,7 +73,6 @@ for epoch in range(1, 11):
             loss.backward()
         except Exception as err:
             pdb.set_trace()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
         optimizer.step()
 
         total_loss += loss.item()
