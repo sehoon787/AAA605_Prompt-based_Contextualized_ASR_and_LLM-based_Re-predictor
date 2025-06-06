@@ -9,7 +9,7 @@ from config.asr_config import config
 from dataset.bpe_tokenizer import BPEAutoTokenizer
 
 class ASRDataset(Dataset):
-    def __init__(self, dataset_split="train-clean-100", max_prompt_len=32, train_tokenizer: bool=False):
+    def __init__(self, dataset_split="train-clean-100", max_prompt_len=64, train_tokenizer: bool=False):
         self.max_prompt_len = max_prompt_len
 
         self.base_data_dir = r"D:\ku\1-2\AAA605_Prompt-based_Contextualized_ASR_and_LLM-based_Re-predictor\data\LibriSpeech"
