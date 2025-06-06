@@ -4,9 +4,10 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torch.cuda.amp import autocast
+from torch.cuda.amp import GradScaler
 from tqdm import tqdm
 from jiwer import wer, cer
+from transformers import get_linear_schedule_with_warmup
 
 from config.asr_config import config
 from dataset.dataset_loader import ASRDataset, collate_fn
@@ -22,26 +23,36 @@ val_dataset = ASRDataset(dataset_split="dev-clean")
 train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, collate_fn=collate_fn)
 val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False, collate_fn=collate_fn)
 
-# 모델, 옵티마이저, 스케줄러 준비
+# 모델, optimizer, loss 준비
 model = ASRModel(config).to(device)
-optimizer = optim.Adam(model.parameters(), lr=1e-5)
+optimizer = optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-2)  # AdamW 추천
 rnnt_loss_fn = RNNTLoss().to(device)
-scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
 
-os.makedirs("checkpoints", exist_ok=True)
+# Warmup + Linear Decay 스케줄러 준비
+num_epochs = 10
+total_steps = len(train_loader) * num_epochs
+warmup_steps = int(0.1 * total_steps)  # 10% warmup
 
-# Dummy Inference용 디코더
+scheduler = get_linear_schedule_with_warmup(
+    optimizer,
+    num_warmup_steps=warmup_steps,
+    num_training_steps=total_steps
+)
+
+# AMP (mixed precision) 사용
+scaler = GradScaler()
+
+# Dummy Inference용 디코더 (Beam Search 디코더 구현 전까지 placeholder)
 def simple_decode(log_probs):
     return ["PLACEHOLDER" for _ in range(log_probs.size(0))]
 
-torch.autograd.set_detect_anomaly(True)
+os.makedirs("checkpoints", exist_ok=True)
 
-# Train loop 시작
-for epoch in range(1, 11):
+# Train loop
+for epoch in range(1, num_epochs + 1):
     model.train()
     total_loss = 0
     progress_bar = tqdm(train_loader, desc=f"Epoch {epoch}")
-    print()
 
     for batch in progress_bar:
         speech_input, utterance_ids, utterance_mask, label_tokens, input_lengths, label_lengths = batch
@@ -74,19 +85,22 @@ for epoch in range(1, 11):
             logit_lengths=input_lengths,
             target_lengths=label_lengths
         )
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
 
         try:
-            loss.backward()
+            scaler.scale(loss).backward()
         except Exception as err:
             pdb.set_trace()
-        optimizer.step()
+
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
+        scaler.step(optimizer)
+        scaler.update()
+        scheduler.step()
 
         total_loss += loss.item()
         progress_bar.set_postfix(batch_loss=loss.item())
 
     avg_train_loss = total_loss / len(train_loader)
-    current_lr = optimizer.param_groups[0]['lr']
+    current_lr = scheduler.get_last_lr()[0]
 
     # Validation
     model.eval()
@@ -104,13 +118,8 @@ for epoch in range(1, 11):
             input_lengths = input_lengths.to(device)
             label_lengths = label_lengths.to(device)
 
-            logits_pruned = model(
-                speech_input,
-                utterance_ids, utterance_mask,
-                label_tokens
-            )
-
-            log_probs = nn.functional.log_softmax(logits_pruned, dim=-1)
+            logits = model(speech_input, utterance_ids, utterance_mask, label_tokens)
+            log_probs = nn.functional.log_softmax(logits, dim=-1)
             loss = rnnt_loss_fn(
                 log_probs=log_probs,
                 targets=label_tokens,
@@ -119,7 +128,6 @@ for epoch in range(1, 11):
             )
 
             val_loss += loss.item()
-
             hyps = simple_decode(log_probs)
             refs = train_dataset.tokenizer.batch_decode(label_tokens, skip_special_tokens=True)
 
@@ -131,10 +139,9 @@ for epoch in range(1, 11):
     cer_score = cer(ref_list, hyp_list)
 
     print(f"\nEpoch {epoch} | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f} | "
-          f"WER: {wer_score*100:.2f}% | CER: {cer_score*100:.2f}% | LR: {current_lr:.6f}")
+          f"WER: {wer_score*100:.2f}% | CER: {cer_score*100:.2f}% | LR: {current_lr:.8f}")
 
-    scheduler.step()
-
+    # 체크포인트 저장
     checkpoint_path = f"checkpoints/asr_model_epoch_{epoch}.pt"
     torch.save({
         'epoch': epoch,
