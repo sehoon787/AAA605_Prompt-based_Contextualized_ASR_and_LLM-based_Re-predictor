@@ -102,15 +102,15 @@ for epoch in range(1, 11):
                 utterance_ids, utterance_mask,
                 label_tokens
             )
-            log_probs = nn.functional.log_softmax(logits_pruned, dim=-1)
-            log_probs = torch.clamp(log_probs, min=-20, max=0)
 
+            log_probs = nn.functional.log_softmax(logits_pruned, dim=-1)
             loss = rnnt_loss_fn(
                 log_probs=log_probs,
                 targets=label_tokens,
                 logit_lengths=input_lengths,
                 target_lengths=label_lengths
             )
+
             val_loss += loss.item()
 
             hyps = simple_decode(log_probs)
