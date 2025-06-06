@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 from models.encoder.zipformer_block import BiasNorm, Bypass, ZipformerBlock
@@ -138,6 +139,10 @@ class SpeechEncoder(nn.Module):
                     x = block(x)
                 x = stage["upsample"](x)
                 x = self.bypass_modules[stage_idx-1](residual, x)
+
+                # to prevent gradient exploding
+                x = torch.clamp(x, -50, 50)
+                print(f"SpeechEncoder {stage_idx} stage x output NaN:", torch.isnan(x).any())
 
         x = self.downsample(x)
 
