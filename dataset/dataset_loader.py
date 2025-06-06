@@ -3,26 +3,25 @@ import glob
 import torch
 import torchaudio
 from torch.utils.data import Dataset
+from tokenizers import Tokenizer, models, trainers, pre_tokenizers, normalizers, decoders
 from config.asr_config import config
+from dataset.bpe_tokenizer import BPEAutoTokenizer
 
 class ASRDataset(Dataset):
-    """
-    최종 심플 버전: 폴더명을 직접 파라미터로 받음
-    """
-
-    def __init__(self, tokenizer, dataset_split="train-clean-100", max_prompt_len=32):
-        self.tokenizer = tokenizer
+    def __init__(self, dataset_split="train-clean-100", max_prompt_len=32, train_tokenizer: bool=False):
         self.max_prompt_len = max_prompt_len
 
-        # 경로 설정 (바로 폴더명 사용)
-        self.base_data_dir = r"C:\Users\Administrator\Desktop\ku\1-2\AAA605_Prompt-based_Contextualized_ASR_and_LLM-based_Re-predictor\data\LibriSpeech"
+        self.base_data_dir = r"D:\ku\1-2\AAA605_Prompt-based_Contextualized_ASR_and_LLM-based_Re-predictor\data\LibriSpeech"
         self.data_dir = os.path.join(self.base_data_dir, dataset_split)
 
-        # transcript 파일 로딩
         self.transcripts = self._load_transcripts()
-
-        # (utt_id, text) 리스트 생성
         self.samples = list(self.transcripts.items())
+
+        self.tokenizer_path = os.path.join(self.base_data_dir, "bpe_tokenizer", "tokenizer.json")
+        if train_tokenizer:
+            self._prepare_tokenizer()
+
+        self.tokenizer = BPEAutoTokenizer(self.tokenizer_path, max_length=32)
 
         self.mel_transform = torchaudio.transforms.MelSpectrogram(
             sample_rate=16000,
@@ -43,15 +42,43 @@ class ASRDataset(Dataset):
 
         if len(transcript_dict) == 0:
             raise ValueError(f"No transcript data found in {self.data_dir}. Please check directory structure.")
-
         return transcript_dict
+
+    def _prepare_tokenizer(self):
+        if not os.path.exists(self.tokenizer_path):
+            print("Tokenizer not found. Training new BPE tokenizer...")
+            all_transcripts = list(self.transcripts.values())
+
+            # Write temporary file
+            temp_corpus = os.path.join(self.base_data_dir, "bpe_corpus.txt")
+            with open(temp_corpus, "w", encoding="utf-8") as f:
+                for text in all_transcripts:
+                    f.write(text + "\n")
+
+            tokenizer = Tokenizer(models.BPE())
+            tokenizer.normalizer = normalizers.Sequence([normalizers.NFKC()])
+            tokenizer.pre_tokenizer = pre_tokenizers.Whitespace()
+            tokenizer.decoder = decoders.BPEDecoder()
+
+            trainer = trainers.BpeTrainer(
+                vocab_size=5000,
+                special_tokens=["<pad>", "<unk>", "<s>", "</s>", "<blank>"]
+            )
+            tokenizer.train([temp_corpus], trainer=trainer)
+
+            os.makedirs(os.path.dirname(self.tokenizer_path), exist_ok=True)
+            tokenizer.save(self.tokenizer_path)
+            print(f"Tokenizer saved to {self.tokenizer_path}")
+
+            os.remove(temp_corpus)  # 임시 corpus 삭제
+        else:
+            print(f"Tokenizer loaded from {self.tokenizer_path}")
 
     def __len__(self):
         return len(self.samples)
 
     def __getitem__(self, idx):
         utt_id, text = self.samples[idx]
-
         speaker_id, chapter_id, utt_num = utt_id.split("-")
         audio_path = os.path.join(self.data_dir, speaker_id, chapter_id, utt_id + ".flac")
 
@@ -68,7 +95,7 @@ class ASRDataset(Dataset):
             speech_tensor.transpose(0, 1),
             prompt_encoding["input_ids"].squeeze(0),
             prompt_encoding["attention_mask"].squeeze(0),
-            label_encoding["input_ids"].squeeze(0)[1:-1]
+            label_encoding["input_ids"].squeeze(0)
         )
 
 def collate_fn(batch):

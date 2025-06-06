@@ -2,7 +2,6 @@
 import torch
 import json
 from torch.utils.data import DataLoader
-from transformers import AutoTokenizer
 
 from config.asr_config import config
 from dataset.dataset_loader import ASRDataset, collate_fn
@@ -19,14 +18,13 @@ model = ASRModel(config).to(device)
 model.load_state_dict(checkpoint['model_state_dict'])
 model.eval()
 
-tokenizer = AutoTokenizer.from_pretrained(config["pretrained_model_name"])
-train_dataset = ASRDataset(tokenizer, dataset_split="train-clean-100")
+train_dataset = ASRDataset(dataset_split="train-clean-100")
 train_loader = DataLoader(train_dataset, batch_size=64, shuffle=False, collate_fn=collate_fn)
 
 beam_decoder = RNNTBeamSearchDecoder(
     encoder=model.encoder,
     decoder=model.decoder,
-    tokenizer=tokenizer,
+    tokenizer=train_dataset.tokenizer,
     beam_size=5,
     device=device
 )
@@ -41,7 +39,7 @@ for batch in train_loader:
     attention_mask = attention_mask.to(device)
     labels = labels.to(device)
 
-    gt_text = tokenizer.decode(labels[0].tolist(), skip_special_tokens=True)
+    gt_text = train_dataset.tokenizer.decode(labels[0].tolist(), skip_special_tokens=True)
 
     n_best = beam_decoder.recognize(speech_input, input_ids, attention_mask)
 

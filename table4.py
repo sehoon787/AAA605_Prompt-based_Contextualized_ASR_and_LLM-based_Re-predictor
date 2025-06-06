@@ -2,7 +2,6 @@ import torch
 import random
 import spacy
 import nltk
-from transformers import AutoTokenizer
 from jiwer import wer
 from torch.utils.data import DataLoader
 from dataset.dataset_loader import ASRDataset, collate_fn
@@ -25,7 +24,8 @@ model = ASRModel(config).to(device)
 model.load_state_dict(checkpoint['model_state_dict'])
 model.eval()
 
-tokenizer = AutoTokenizer.from_pretrained(config["pretrained_model_name"])
+from tokenizers import Tokenizer
+tokenizer = Tokenizer.from_file('bpe_tokenizer/tokenizer.json')
 
 beam_decoder = RNNTBeamSearchDecoder(
     encoder=model.encoder,
@@ -40,8 +40,8 @@ re_predictor = RePredictor(model_name="meta-llama/Meta-Llama-3-8B-Instruct", dev
 
 # Dataset 불러오기 (test-clean 및 test-other 분리 실험)
 datasets = {
-    "test-clean": ASRDataset(tokenizer, dataset_split="test.clean"),
-    "test-other": ASRDataset(tokenizer, dataset_split="test.other")
+    "test-clean": ASRDataset(dataset_split="test-clean"),
+    "test-other": ASRDataset(dataset_split="test-other")
 }
 
 bias_sizes = [10, 100, 500, 1000]

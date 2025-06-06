@@ -33,7 +33,11 @@ class ASREncoder(nn.Module):
 
     def forward(self, speech_input, input_ids, attention_mask):
         speech_features = self.speech_encoder(speech_input)
+        # print("speech_features:", speech_features.shape)
         text_features = self.text_encoder(input_ids, attention_mask)
+        # print("text_features:", text_features.shape)
         text_adapted = self.text_adapter(text_features)
+        # print("text_adapted:", text_adapted.shape)
         fused_output = self.cross_attention(speech_features, text_adapted)
+        # print("fused_output:", fused_output.shape)
         return fused_output

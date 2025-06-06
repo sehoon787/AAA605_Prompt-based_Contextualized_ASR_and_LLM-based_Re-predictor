@@ -5,7 +5,6 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torch.cuda.amp import autocast
-from transformers import AutoTokenizer
 from tqdm import tqdm
 from jiwer import wer, cer
 
@@ -20,14 +19,14 @@ from utils.hf_auth import huggingface_login
 # huggingface_login()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# 데이터 준비
-tokenizer = AutoTokenizer.from_pretrained(config["pretrained_model_name"])
+from dataset.bpe_tokenizer import BPEAutoTokenizer
+tokenizer = BPEAutoTokenizer(tokenizer_path="bpe_tokenizer/tokenizer.json", max_length=32)
 
-train_dataset = ASRDataset(tokenizer, dataset_split="train-clean-100")
-val_dataset = ASRDataset(tokenizer, dataset_split="dev-clean")  # validation 추가
+train_dataset = ASRDataset(dataset_split="train-clean-100", train_tokenizer=True)
+val_dataset = ASRDataset(dataset_split="dev-clean")
 
-train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True, collate_fn=collate_fn)
-val_loader = DataLoader(val_dataset, batch_size=2, shuffle=False, collate_fn=collate_fn)
+train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, collate_fn=collate_fn)
+val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False, collate_fn=collate_fn)
 
 # 모델 및 optimizer 준비
 model = ASRModel(config).to(device)
@@ -60,6 +59,8 @@ for epoch in range(1, 11):
         label_tokens = label_tokens.to(device)
         input_lengths = input_lengths.to(device) // config['subsampling_factor']
         label_lengths = label_lengths.to(device)
+        print(f"\nspeech_input: {speech_input.shape} | input_ids: {input_ids.shape} | attention_mask: {attention_mask.shape} | "
+              f"label_tokens: {label_tokens.shape} | input_lengths: {input_lengths} | label_lengths: {label_lengths}")
 
         optimizer.zero_grad()
 

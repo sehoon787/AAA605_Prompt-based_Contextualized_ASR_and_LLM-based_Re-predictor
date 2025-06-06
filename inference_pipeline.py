@@ -18,16 +18,14 @@ model = ASRModel(config).to(device)
 model.load_state_dict(checkpoint['model_state_dict'])
 model.eval()
 
-tokenizer = AutoTokenizer.from_pretrained(config["pretrained_model_name"])
-
 # Load test data
-test_dataset = ASRDataset(tokenizer, dataset_split="test.clean")
+test_dataset = ASRDataset(dataset_split="test-clean")
 test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, collate_fn=collate_fn)
 
 beam_decoder = RNNTBeamSearchDecoder(
     encoder=model.encoder,
     decoder=model.decoder,
-    tokenizer=tokenizer,
+    tokenizer=test_dataset.tokenizer,
     beam_size=5,
     device=device
 )

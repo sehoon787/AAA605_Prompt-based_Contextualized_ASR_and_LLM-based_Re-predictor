@@ -24,6 +24,7 @@ class ASRDecoder(nn.Module):
         tokens: (B, U)  -> target tokens for prediction network
         """
         predictor_out = self.prediction_net(tokens)  # (B, U, embed_dim)
+        print("predictor_out:", predictor_out.shape)
 
         # blank token prepending
         blank = torch.zeros((predictor_out.size(0), 1, predictor_out.size(2)),
@@ -31,4 +32,5 @@ class ASRDecoder(nn.Module):
         predictor_out = torch.cat([blank, predictor_out], dim=1)  # (B, U+1, embed_dim)
 
         logits = self.joint_net(encoder_out, predictor_out)  # (B, T, U+1, V)
+        print("logits:", logits.shape)
         return logits
