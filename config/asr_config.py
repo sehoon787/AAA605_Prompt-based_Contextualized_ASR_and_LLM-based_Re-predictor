@@ -4,8 +4,6 @@ config = {
     "zipformer_blocks": [2, 2, 3, 4, 3, 2],
     "reduction_factors": [2, 3, 4, 3, 2],
 
-    "subsampling_factor": 4,
-
     "pretrained_model_name": "bert-base-uncased",
     "bert_hidden_dim": 768,
     "adapter_dim": 256,

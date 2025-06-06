@@ -49,7 +49,7 @@ for epoch in range(1, 11):
         utterance_ids = utterance_ids.to(device)
         utterance_mask = utterance_mask.to(device)
         label_tokens = label_tokens.to(device)
-        input_lengths = input_lengths.to(device) // config['subsampling_factor']
+        input_lengths = input_lengths.to(device)
         label_lengths = label_lengths.to(device)
 
         optimizer.zero_grad()
@@ -94,7 +94,7 @@ for epoch in range(1, 11):
             utterance_ids = utterance_ids.to(device)
             utterance_mask = utterance_mask.to(device)
             label_tokens = label_tokens.to(device)
-            input_lengths = input_lengths.to(device) // config['subsampling_factor']
+            input_lengths = input_lengths.to(device)
             label_lengths = label_lengths.to(device)
 
             logits_pruned = model(
