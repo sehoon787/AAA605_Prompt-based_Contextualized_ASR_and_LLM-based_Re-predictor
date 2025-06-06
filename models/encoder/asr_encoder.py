@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 from models.encoder.speech_encoder import SpeechEncoder
@@ -36,4 +37,10 @@ class ASREncoder(nn.Module):
         text_features = self.text_encoder(utterance_ids, utterance_mask)
         text_adapted = self.text_adapter(text_features)
         fused_output = self.cross_attention(speech_features, text_adapted)
+
+        print("SpeechEncoder output NaN:", torch.isnan(speech_features).any())
+        print("TextEncoder output NaN:", torch.isnan(text_features).any())
+        print("TextAdapter output NaN:", torch.isnan(text_adapted).any())
+        print("CrossAttention output NaN:", torch.isnan(fused_output).any())
+
         return fused_output

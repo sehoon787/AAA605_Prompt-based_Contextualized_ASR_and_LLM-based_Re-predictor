@@ -41,6 +41,7 @@ for epoch in range(1, 11):
     model.train()
     total_loss = 0
     progress_bar = tqdm(train_loader, desc=f"Epoch {epoch}")
+    print()
 
     for batch in progress_bar:
         speech_input, utterance_ids, utterance_mask, label_tokens, input_lengths, label_lengths = batch
@@ -54,12 +55,15 @@ for epoch in range(1, 11):
 
         optimizer.zero_grad()
 
+        print("speech_input NaN:", torch.isnan(speech_input).any())
+        print("speech_input Max:", speech_input.max(), "Min:", speech_input.min())
+
         logits = model(
             speech_input,
             utterance_ids, utterance_mask,
             label_tokens
         )
-        print("\nLogits NaN Check:", torch.isnan(logits).any())
+        print("Logits NaN Check:", torch.isnan(logits).any())
         print("Logits Inf Check:", torch.isinf(logits).any())
         print("Logits Max:", logits.max().item(), "Min:", logits.min().item())
 
