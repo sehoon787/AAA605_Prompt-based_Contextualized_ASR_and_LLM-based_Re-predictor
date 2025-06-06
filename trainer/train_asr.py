@@ -45,7 +45,6 @@ for epoch in range(1, 11):
     for batch in progress_bar:
         speech_input, utterance_ids, utterance_mask, label_tokens, input_lengths, label_lengths = batch
 
-        # Device로 이동
         speech_input = speech_input.to(device)
         utterance_ids = utterance_ids.to(device)
         utterance_mask = utterance_mask.to(device)
@@ -68,6 +67,7 @@ for epoch in range(1, 11):
             logit_lengths=input_lengths,
             target_lengths=label_lengths
         )
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
 
         try:
             loss.backward()
