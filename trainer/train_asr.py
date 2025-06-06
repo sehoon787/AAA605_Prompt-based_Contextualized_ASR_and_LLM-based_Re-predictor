@@ -11,7 +11,7 @@ from jiwer import wer, cer
 from config.asr_config import config
 from dataset.dataset_loader import ASRDataset, collate_fn
 from models.asr_model import ASRModel
-from models.losses.pruned_rnnt_loss import PrunedRNNTLoss
+from models.losses.pruned_rnnt_loss import RNNTLoss
 
 # huggingface_login()  # 필요시 사용
 
