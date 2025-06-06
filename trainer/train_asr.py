@@ -19,9 +19,6 @@ from utils.hf_auth import huggingface_login
 # huggingface_login()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-from dataset.bpe_tokenizer import BPEAutoTokenizer
-tokenizer = BPEAutoTokenizer(tokenizer_path="bpe_tokenizer/tokenizer.json", max_length=32)
-
 train_dataset = ASRDataset(dataset_split="train-clean-100", train_tokenizer=True)
 val_dataset = ASRDataset(dataset_split="dev-clean")
 
@@ -127,7 +124,7 @@ for epoch in range(1, 11):
 
             # 추후 디코더 연결시 decoding 추가 (지금은 placeholder)
             hyps = simple_decode(log_probs)
-            refs = tokenizer.batch_decode(label_tokens, skip_special_tokens=True)
+            refs = train_dataset.tokenizer.batch_decode(label_tokens, skip_special_tokens=True)
 
             hyp_list.extend(hyps)
             ref_list.extend(refs)

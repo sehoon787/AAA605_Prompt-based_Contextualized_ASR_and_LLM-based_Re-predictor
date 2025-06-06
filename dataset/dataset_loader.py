@@ -20,7 +20,6 @@ class ASRDataset(Dataset):
         self.tokenizer_path = os.path.join(self.base_data_dir, "bpe_tokenizer", "tokenizer.json")
         if train_tokenizer:
             self._prepare_tokenizer()
-
         self.tokenizer = BPEAutoTokenizer(self.tokenizer_path, max_length=32)
 
         self.mel_transform = torchaudio.transforms.MelSpectrogram(
@@ -45,34 +44,33 @@ class ASRDataset(Dataset):
         return transcript_dict
 
     def _prepare_tokenizer(self):
-        if not os.path.exists(self.tokenizer_path):
-            print("Tokenizer not found. Training new BPE tokenizer...")
-            all_transcripts = list(self.transcripts.values())
+        tokenizer_path = os.path.join(self.base_data_dir, "bpe_tokenizer")
+        os.makedirs(os.path.dirname(tokenizer_path), exist_ok=True)
 
-            # Write temporary file
-            temp_corpus = os.path.join(self.base_data_dir, "bpe_corpus.txt")
-            with open(temp_corpus, "w", encoding="utf-8") as f:
-                for text in all_transcripts:
-                    f.write(text + "\n")
+        all_transcripts = list(self.transcripts.values())
 
-            tokenizer = Tokenizer(models.BPE())
-            tokenizer.normalizer = normalizers.Sequence([normalizers.NFKC()])
-            tokenizer.pre_tokenizer = pre_tokenizers.Whitespace()
-            tokenizer.decoder = decoders.BPEDecoder()
+        # Write temporary file
+        temp_corpus = os.path.join(self.base_data_dir, "bpe_corpus.txt")
+        with open(temp_corpus, "w", encoding="utf-8") as f:
+            for text in all_transcripts:
+                f.write(text + "\n")
 
-            trainer = trainers.BpeTrainer(
-                vocab_size=5000,
-                special_tokens=["<pad>", "<unk>", "<s>", "</s>", "<blank>"]
-            )
-            tokenizer.train([temp_corpus], trainer=trainer)
+        tokenizer = Tokenizer(models.BPE())
+        tokenizer.normalizer = normalizers.Sequence([normalizers.NFKC()])
+        tokenizer.pre_tokenizer = pre_tokenizers.Whitespace()
+        tokenizer.decoder = decoders.BPEDecoder()
 
-            os.makedirs(os.path.dirname(self.tokenizer_path), exist_ok=True)
-            tokenizer.save(self.tokenizer_path)
-            print(f"Tokenizer saved to {self.tokenizer_path}")
+        trainer = trainers.BpeTrainer(
+            vocab_size=1024,
+            special_tokens=["<pad>", "<unk>", "<s>", "</s>", "<blank>"]
+        )
+        tokenizer.train([temp_corpus], trainer=trainer)
 
-            os.remove(temp_corpus)  # 임시 corpus 삭제
-        else:
-            print(f"Tokenizer loaded from {self.tokenizer_path}")
+        tokenizer.save(self.tokenizer_path)
+        print(f"Tokenizer saved to {self.tokenizer_path}")
+
+        os.remove(temp_corpus)  # 임시 corpus 삭제
+
 
     def __len__(self):
         return len(self.samples)
