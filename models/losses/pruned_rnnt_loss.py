@@ -33,7 +33,6 @@ class RNNTLoss(nn.Module):
     def forward(self, log_probs, targets, logit_lengths, target_lengths):
         logit_lengths = torch.full_like(logit_lengths, log_probs.shape[1])
 
-        print(log_probs)
         print("log_probs:", log_probs.shape)
         print("targets:", targets.shape)  # -> (B, U)
         print("logit_lengths:", logit_lengths)  # -> (B,) and int32
