@@ -11,7 +11,7 @@ config = {
     "adapter_dim": 256,
     "fusion_dim": 256,
 
-    "vocab_size": 5000,  # 예: a-z + blank + space + apostrophe 등
+    "vocab_size": 1024,  # 예: a-z + blank + space + apostrophe 등
     "embed_dim": 256,
     "encoder_output_dim": 256,
     "joint_dim": 512
