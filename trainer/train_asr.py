@@ -59,7 +59,7 @@ for epoch in range(1, 11):
             utterance_ids, utterance_mask,
             label_tokens
         )
-        print("Logits NaN Check:", torch.isnan(logits).any())
+        print("\nLogits NaN Check:", torch.isnan(logits).any())
         print("Logits Inf Check:", torch.isinf(logits).any())
         print("Logits Max:", logits.max().item(), "Min:", logits.min().item())
 
