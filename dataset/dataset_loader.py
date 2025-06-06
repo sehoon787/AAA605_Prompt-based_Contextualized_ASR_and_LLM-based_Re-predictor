@@ -78,7 +78,7 @@ class ASRDataset(Dataset):
         tokenizer.decoder = decoders.BPEDecoder()
 
         trainer = trainers.BpeTrainer(
-            vocab_size=1024,
+            vocab_size=config['vocab_size'],
             special_tokens=["<pad>", "<unk>", "<s>", "</s>", "<blank>"]
         )
         tokenizer.train([temp_corpus], trainer=trainer)
