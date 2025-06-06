@@ -19,8 +19,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 train_dataset = ASRDataset(dataset_split="train-clean-100", train_tokenizer=True)
 val_dataset = ASRDataset(dataset_split="dev-clean")
 
-train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, collate_fn=collate_fn)
-val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False, collate_fn=collate_fn)
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, collate_fn=collate_fn)
+val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, collate_fn=collate_fn)
 
 # 모델, 옵티마이저, 스케줄러 준비
 model = ASRModel(config).to(device)
