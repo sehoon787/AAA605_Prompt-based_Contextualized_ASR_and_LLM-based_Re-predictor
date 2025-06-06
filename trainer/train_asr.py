@@ -11,65 +11,62 @@ from jiwer import wer, cer
 from config.asr_config import config
 from dataset.dataset_loader import ASRDataset, collate_fn
 from models.asr_model import ASRModel
-# from models.losses.pruned_rnnt_loss import PrunedRNNTLoss
-from models.losses.pruned_rnnt_loss import RNNTLoss
-from utils.hf_auth import huggingface_login
+from models.losses.pruned_rnnt_loss import PrunedRNNTLoss
 
-# 필요시
-# huggingface_login()
+# huggingface_login()  # 필요시 사용
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# Dataset 준비
 train_dataset = ASRDataset(dataset_split="train-clean-100", train_tokenizer=True)
 val_dataset = ASRDataset(dataset_split="dev-clean")
 
 train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, collate_fn=collate_fn)
 val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False, collate_fn=collate_fn)
 
-# 모델 및 optimizer 준비
+# 모델, 옵티마이저, 스케줄러 준비
 model = ASRModel(config).to(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-4)
-# pruned_loss_fn = PrunedRNNTLoss(reduction="mean", prune_range=5).to(device)
 rnnt_loss_fn = RNNTLoss().to(device)
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
 
 os.makedirs("checkpoints", exist_ok=True)
 
-# Inference용 간단한 Greedy Decoder (Placeholder)
+# Dummy Inference용 디코더
 def simple_decode(log_probs):
     return ["PLACEHOLDER" for _ in range(log_probs.size(0))]
 
-
 torch.autograd.set_detect_anomaly(True)
 
-# Train Loop
+# Train loop 시작
 for epoch in range(1, 11):
     model.train()
     total_loss = 0
     progress_bar = tqdm(train_loader, desc=f"Epoch {epoch}")
 
     for batch in progress_bar:
-        speech_input, input_ids, attention_mask, label_tokens, input_lengths, label_lengths = batch
+        speech_input, utterance_ids, utterance_mask, label_tokens, input_lengths, label_lengths = batch
 
+        # Device로 이동
         speech_input = speech_input.to(device)
-        input_ids = input_ids.to(device)
-        attention_mask = attention_mask.to(device)
+        utterance_ids = utterance_ids.to(device)
+        utterance_mask = utterance_mask.to(device)
         label_tokens = label_tokens.to(device)
         input_lengths = input_lengths.to(device) // config['subsampling_factor']
         label_lengths = label_lengths.to(device)
-        print(f"\nspeech_input: {speech_input.shape} | input_ids: {input_ids.shape} | attention_mask: {attention_mask.shape} | "
-              f"label_tokens: {label_tokens.shape} | input_lengths: {input_lengths} | label_lengths: {label_lengths}")
 
         optimizer.zero_grad()
 
-        logits = model(speech_input, input_ids, attention_mask, label_tokens)
-        print("logits max:", logits.abs().max())
+        logits = model(
+            speech_input,
+            utterance_ids, utterance_mask,
+            label_tokens
+        )
 
-        # OOM 방지
         with autocast():
             log_probs = nn.functional.log_softmax(logits, dim=-1)
             log_probs = torch.clamp(log_probs, min=-20, max=0)
 
-        # loss = pruned_loss_fn(
         loss = rnnt_loss_fn(
             log_probs=log_probs,
             targets=label_tokens,
@@ -81,12 +78,8 @@ for epoch in range(1, 11):
             loss.backward()
         except Exception as err:
             pdb.set_trace()
-
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
         optimizer.step()
-        # parameter sample
-        param = list(model.parameters())[0]
-        print(f"Param sample after step: {param.view(-1)[0].item():.6f}")
 
         total_loss += loss.item()
         progress_bar.set_postfix(batch_loss=loss.item())
@@ -94,27 +87,31 @@ for epoch in range(1, 11):
     avg_train_loss = total_loss / len(train_loader)
     current_lr = optimizer.param_groups[0]['lr']
 
-    # Validation 시작
+    # Validation
     model.eval()
     val_loss = 0
     hyp_list, ref_list = [], []
 
     with torch.no_grad():
         for batch in val_loader:
-            speech_input, input_ids, attention_mask, label_tokens, input_lengths, label_lengths = batch
+            speech_input, utterance_ids, utterance_mask, label_tokens, input_lengths, label_lengths = batch
 
             speech_input = speech_input.to(device)
-            input_ids = input_ids.to(device)
-            attention_mask = attention_mask.to(device)
+            utterance_ids = utterance_ids.to(device)
+            utterance_mask = utterance_mask.to(device)
             label_tokens = label_tokens.to(device)
             input_lengths = input_lengths.to(device) // config['subsampling_factor']
             label_lengths = label_lengths.to(device)
 
-            logits_pruned = model.forward_pruned(speech_input, input_ids, attention_mask, label_tokens)
+            logits_pruned = model(
+                speech_input,
+                utterance_ids, utterance_mask,
+                label_tokens
+            )
             log_probs = nn.functional.log_softmax(logits_pruned, dim=-1)
+            log_probs = torch.clamp(log_probs, min=-20, max=0)
 
             loss = rnnt_loss_fn(
-            # loss = pruned_loss_fn(
                 log_probs=log_probs,
                 targets=label_tokens,
                 logit_lengths=input_lengths,
@@ -122,7 +119,6 @@ for epoch in range(1, 11):
             )
             val_loss += loss.item()
 
-            # 추후 디코더 연결시 decoding 추가 (지금은 placeholder)
             hyps = simple_decode(log_probs)
             refs = train_dataset.tokenizer.batch_decode(label_tokens, skip_special_tokens=True)
 
@@ -130,8 +126,6 @@ for epoch in range(1, 11):
             ref_list.extend(refs)
 
     avg_val_loss = val_loss / len(val_loader)
-
-    # (지금은 dummy WER/CER, 추후 디코더 연동하면 정확 계산 가능)
     wer_score = wer(ref_list, hyp_list)
     cer_score = cer(ref_list, hyp_list)
 

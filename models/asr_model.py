@@ -9,7 +9,7 @@ class ASRModel(nn.Module):
         self.encoder = ASREncoder(config)
         self.decoder = ASRDecoder(config)
 
-    def forward(self, speech_input, input_ids, attention_mask, tokens):
-        encoder_out = self.encoder(speech_input, input_ids, attention_mask)
+    def forward(self, speech_input, utterance_ids, utterance_mask, tokens):
+        encoder_out = self.encoder(speech_input, utterance_ids, utterance_mask)
         logits = self.decoder(encoder_out, tokens)
         return logits
