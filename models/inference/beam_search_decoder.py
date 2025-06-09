@@ -19,18 +19,18 @@ class RNNTBeamSearchDecoder:
             encoder_out = self.encoder(speech_input, input_ids, attention_mask)
             T_enc = encoder_out.size(1)
 
-            beams = [{
-                'tokens': [self.blank_id],
-                'score': 0.0,
-                'hidden': None
-            }]
+            beams = [{'tokens': [], 'score': 0.0, 'hidden': None}]
 
             for t in range(T_enc):
                 new_beams = []
                 enc_t = encoder_out[:, t:t+1, :]
 
                 for beam in beams:
-                    prev_tokens = torch.tensor(beam['tokens'], dtype=torch.long, device=self.device).unsqueeze(0)
+                    prev_tokens = torch.tensor(
+                        beam['tokens'] if beam['tokens'] else [self.blank_id],
+                        dtype=torch.long, device=self.device
+                    ).unsqueeze(0)
+
                     predictor_out, hidden = self.decoder.prediction_net(prev_tokens, beam['hidden'])
                     joint_out = self.decoder.joint_net(enc_t, predictor_out[:, -1:, :])
                     log_probs = F.log_softmax(joint_out.squeeze(1).squeeze(1), dim=-1).squeeze(0)
@@ -43,25 +43,17 @@ class RNNTBeamSearchDecoder:
                         new_tokens = deepcopy(beam['tokens'])
 
                         if new_token == self.blank_id:
-                            new_beams.append({
-                                'tokens': new_tokens,
-                                'score': new_score,
-                                'hidden': beam['hidden']
-                            })
+                            new_beams.append({'tokens': new_tokens, 'score': new_score, 'hidden': beam['hidden']})
                         else:
                             new_tokens.append(new_token)
-                            new_beams.append({
-                                'tokens': new_tokens,
-                                'score': new_score,
-                                'hidden': hidden
-                            })
+                            new_beams.append({'tokens': new_tokens, 'score': new_score, 'hidden': hidden})
 
                 beams = sorted(new_beams, key=lambda x: x['score'], reverse=True)[:self.beam_size]
 
         n_best = sorted(beams, key=lambda x: x['score'], reverse=True)
         decoded_results = []
         for hyp in n_best:
-            text = self.tokenizer.decode(hyp['tokens'], skip_special_tokens=True)
+            text = self.tokenizer.decode(hyp['tokens'])
             decoded_results.append({'text': text, 'score': hyp['score'], 'tokens': hyp['tokens']})
 
         return decoded_results

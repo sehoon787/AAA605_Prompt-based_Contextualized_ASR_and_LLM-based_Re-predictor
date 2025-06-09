@@ -1,6 +1,5 @@
 import torch
 from torch.utils.data import DataLoader
-from transformers import AutoTokenizer
 from dataset.dataset_loader import ASRDataset, collate_fn
 from models.asr_model import ASRModel
 from models.inference.beam_search_decoder import RNNTBeamSearchDecoder
@@ -10,7 +9,7 @@ from models.re_predictor.re_predictor import RePredictor
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load ASR model
-checkpoint_path = "checkpoints/asr_model_epoch_10.pt"
+checkpoint_path = "trainer/checkpoints/asr_model_epoch_10.pt"
 checkpoint = torch.load(checkpoint_path, map_location=device)
 config = checkpoint['config']
 
